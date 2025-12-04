@@ -90,12 +90,12 @@ const LandingPage: React.FC = () => {
             </div>
             
             <h1 className="text-5xl lg:text-7xl font-black tracking-tight mb-6 leading-[1.1] text-slate-900 animate-fade-in-up delay-100 font-serif">
-                Thịt Sạch <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-400">Cho Cả Nhà</span>
+                An Toàn Trọn Gói <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-400">Chọn Thịt Tươi Rói</span>
             </h1>
             
             <p className="text-slate-500 text-lg lg:text-xl mb-10 leading-relaxed animate-fade-in-up delay-200 font-medium max-w-xl">
-                Ứng dụng AI đầu tiên tại Việt Nam giúp bạn kiểm tra độ tươi của thịt chỉ trong 3 giây. Nay đã có thêm Trợ lý Ảo đồng hành cùng căn bếp.
+                Ứng dụng AI đầu tiên tại Việt Nam giúp bạn kiểm tra độ tươi của thịt chỉ trong 3 giây. Nay đã có thêm Trợ lý Ảo đồng hành cùng căn bếp Việt.
             </p>
 
             <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-4 animate-fade-in-up delay-300 relative z-20 mb-12 lg:mb-0">
@@ -142,8 +142,8 @@ const LandingPage: React.FC = () => {
                 </div>
 
                 <div className="mt-6 pt-6 border-t border-rose-100 flex items-center justify-between text-xs text-slate-400 font-medium">
-                    <span>Dữ liệu cập nhật: 2024</span>
-                    <span>10,000+ lượt quét</span>
+                    <span>Dữ liệu cập nhật: 2025</span>
+                    <span>500+ lượt quét</span>
                 </div>
              </div>
           </div>
@@ -171,7 +171,7 @@ const LandingPage: React.FC = () => {
                             color: "text-blue-500", 
                             bg: "bg-blue-50", 
                             title: "Big Data", 
-                            desc: "Huấn luyện trên 10,000+ mẫu thịt chuẩn ISO." 
+                            desc: "Huấn luyện trên 2000+ mẫu thịt chuẩn." 
                         },
                         { 
                             icon: Bot, 
