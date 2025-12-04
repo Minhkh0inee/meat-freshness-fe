@@ -1,4 +1,3 @@
-
 export enum MeatType {
   PORK = 'Thịt Heo',
   BEEF = 'Thịt Bò',
@@ -86,4 +85,24 @@ export interface ChatSession {
   messages: ChatMessage[];
   createdAt: number;
   lastMessageAt: number;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatar?: string;
+  level?: number;
+  xp?: number;
+  title?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Thêm interface cho subscription
+export interface UserSubscription {
+  isPremium: boolean;
+  plan: 'free' | 'monthly' | 'yearly';
+  expiresAt?: string;
+  features?: string[];
 }

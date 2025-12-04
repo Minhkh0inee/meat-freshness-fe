@@ -1,7 +1,7 @@
-
 import React, { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ScanLine, BookOpen, Sparkles, Home, ChefHat, Clock, Bot, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -9,6 +9,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
   const isLandingPage = location.pathname === '/';
   const isPremiumPage = location.pathname === '/premium';
 
@@ -59,12 +60,32 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* RIGHT SIDE ACTIONS */}
             {isLandingPage ? (
-               <Link 
-                 to="/scan" 
-                 className="px-5 py-2 bg-rose-500 text-white font-bold rounded-full text-sm shadow-lg shadow-rose-200 hover:bg-rose-600 hover:scale-105 transition-all duration-300"
-               >
-                  Bắt đầu ngay
-               </Link>
+               /* Landing page - show sign in or start button */
+               <div className="flex items-center gap-3">
+                 {isAuthenticated ? (
+                   <Link 
+                     to="/scan" 
+                     className="px-5 py-2 bg-rose-500 text-white font-bold rounded-full text-sm shadow-lg shadow-rose-200 hover:bg-rose-600 hover:scale-105 transition-all duration-300"
+                   >
+                      Vào ứng dụng
+                   </Link>
+                 ) : (
+                   <>
+                     <Link 
+                       to="/signin" 
+                       className="px-4 py-2 text-slate-600 hover:text-rose-500 font-bold text-sm transition-colors"
+                     >
+                        Đăng nhập
+                     </Link>
+                     <Link 
+                       to="/signup" 
+                       className="px-5 py-2 bg-rose-500 text-white font-bold rounded-full text-sm shadow-lg shadow-rose-200 hover:bg-rose-600 hover:scale-105 transition-all duration-300"
+                     >
+                        Bắt đầu ngay
+                     </Link>
+                   </>
+                 )}
+               </div>
             ) : (
                /* APP NAVIGATION */
                <>
@@ -89,14 +110,58 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     })}
                     <div className="w-px h-6 bg-slate-200 mx-2"></div>
 
-                    <Link to="/account" className={`p-2.5 rounded-full border shadow-sm transition-all hover:scale-105 flex items-center gap-2 px-4 ${isActive('/account') ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-100 hover:border-rose-200'}`}>
-                        <User className="w-4 h-4" />
-                        <span className="text-sm font-bold">Tài khoản</span>
-                    </Link>
+                    {/* Account Button - Show user name if authenticated */}
+                    {isAuthenticated ? (
+                      <Link to="/account" className={`p-2.5 rounded-full border shadow-sm transition-all hover:scale-105 flex items-center gap-2 px-4 ${isActive('/account') ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-100 hover:border-rose-200'}`}>
+                          {user?.avatar ? (
+                            <img 
+                              src={user.avatar} 
+                              alt="Avatar" 
+                              className="w-5 h-5 rounded-full object-cover" 
+                            />
+                          ) : (
+                            <User className="w-4 h-4" />
+                          )}
+                          <span className="text-sm font-bold">
+                            {user?.name || 'Tài khoản'}
+                          </span>
+                      </Link>
+                    ) : (
+                      <Link 
+                        to="/signin" 
+                        className="p-2.5 rounded-full border shadow-sm transition-all hover:scale-105 flex items-center gap-2 px-4 bg-white text-slate-500 border-slate-100 hover:border-rose-200"
+                      >
+                          <User className="w-4 h-4" />
+                          <span className="text-sm font-bold">Đăng nhập</span>
+                      </Link>
+                    )}
                 </nav>
 
-                {/* Mobile Header Right Placeholder */}
+                {/* Mobile Header Right - Show user name if authenticated */}
                 <div className="md:hidden flex items-center">
+                  {isAuthenticated && user ? (
+                    <Link to="/account" className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/50 border border-white/20">
+                      {user.avatar ? (
+                        <img 
+                          src={user.avatar} 
+                          alt="Avatar" 
+                          className="w-6 h-6 rounded-full object-cover" 
+                        />
+                      ) : (
+                        <User className="w-4 h-4 text-slate-500" />
+                      )}
+                      <span className="text-xs font-bold text-slate-600 max-w-[80px] truncate">
+                        {user.name}
+                      </span>
+                    </Link>
+                  ) : (
+                    <Link 
+                      to="/signin" 
+                      className="text-xs font-bold text-slate-500 px-3 py-1.5 rounded-full bg-white/50 border border-white/20"
+                    >
+                      Đăng nhập
+                    </Link>
+                  )}
                 </div>
                </>
             )}

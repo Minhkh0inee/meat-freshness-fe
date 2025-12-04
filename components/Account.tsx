@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { HistoryItem, ActionStatus, BlogPost, StorageEnvironment, ContainerType } from '../types';
 import { 
   Clock, 
@@ -20,29 +19,50 @@ import {
   Sun,
   Box,
   ShoppingBag,
-  Ban
+  Ban,
+  Edit2,
+  Camera,
+  User as UserIcon,
+  Loader,
+  LogOut,
+  Settings
 } from 'lucide-react';
 import { blogPosts } from '../utils/mockData';
-
-// --- MOCK USER PROFILE ---
-const USER_PROFILE = {
-  name: "Phúc",
-  avatar: "https://images.unsplash.com/photo-1599566150163-29194dcaad36?auto=format&fit=crop&q=80&w=200",
-  level: 5,
-  title: "Foodie Sành Ăn",
-  xp: 75, // 75% to level 6
-  nextLevelXp: 100
-};
+import { useProfile } from '../hooks/useProfile';
+import { useAuth } from '../context/AuthContext';
 
 const Account: React.FC = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated, signOut } = useAuth();
+  const { user, subscription, loading: profileLoading, error: profileError, uploadAvatar } = useProfile();
+  
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<'storage' | 'saved'>('storage');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [savedPosts, setSavedPosts] = useState<BlogPost[]>([]);
-  const [subscription, setSubscription] = useState<{isPremium: boolean, plan: string}>({isPremium: false, plan: 'free'});
-  
-  // State to toggle storage config panel for a specific item
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    if (window.confirm('Bạn có chắc muốn đăng xuất?')) {
+      try {
+        await signOut();
+        navigate('/signin');
+      } catch (error) {
+        console.error('Sign out error:', error);
+        // Fallback: force redirect even if API fails
+        navigate('/signin');
+      }
+    }
+  };
+
+  // Redirect to sign in if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      window.location.href = '/signin';
+    }
+  }, [isAuthenticated]);
 
   // --- LOAD DATA ---
   const loadData = () => {
@@ -198,6 +218,31 @@ const Account: React.FC = () => {
     }
   };
 
+  // Handle avatar upload
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB');
+      return;
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn file ảnh');
+      return;
+    }
+
+    try {
+      await uploadAvatar(file);
+      alert('Cập nhật ảnh đại diện thành công!');
+    } catch (error) {
+      alert('Lỗi upload ảnh. Vui lòng thử lại.');
+    }
+  };
+
   // --- HELPER: TIME ---
   const getHoursLeft = (deadline: number) => {
     const now = Date.now();
@@ -220,6 +265,26 @@ const Account: React.FC = () => {
      return { label: `Còn ${hours}h`, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' };
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="max-w-2xl mx-auto py-24 text-center">
+        <p className="text-slate-500">Vui lòng đăng nhập để xem trang này</p>
+        <Link to="/signin" className="text-rose-500 font-bold hover:underline">
+          Đăng nhập ngay
+        </Link>
+      </div>
+    );
+  }
+
+  // Default values for UI
+  const displayUser = user || {
+    name: 'Người dùng',
+    avatar: '',
+    level: 1,
+    xp: 0,
+    title: 'Thành viên mới'
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-24 animate-fade-in-up">
       
@@ -227,21 +292,55 @@ const Account: React.FC = () => {
       <div className="bg-white rounded-3xl p-6 shadow-xl shadow-rose-100/50 border border-rose-50 relative overflow-hidden">
          <div className="absolute top-0 right-0 w-32 h-32 bg-rose-100 rounded-bl-[4rem] -mr-4 -mt-4 opacity-50"></div>
          
+         {profileLoading && (
+           <div className="absolute inset-0 bg-white/80 rounded-3xl flex items-center justify-center z-20">
+             <Loader className="w-6 h-6 animate-spin text-rose-500" />
+           </div>
+         )}
+         
          <div className="relative z-10 flex items-center gap-4">
-            <div className="relative">
-                <img 
-                    src={USER_PROFILE.avatar} 
-                    alt="Avatar" 
-                    className={`w-20 h-20 rounded-full object-cover border-4 shadow-sm bg-slate-200 ${subscription.plan === 'yearly' ? 'border-amber-400' : subscription.plan === 'monthly' ? 'border-rose-400' : 'border-slate-100'}`}
-                />
+            <div className="relative group">
+                {displayUser.avatar ? (
+                  <img 
+                      src={displayUser.avatar} 
+                      alt="Avatar" 
+                      className={`w-20 h-20 rounded-full object-cover border-4 shadow-sm bg-slate-200 ${subscription.plan === 'yearly' ? 'border-amber-400' : subscription.plan === 'monthly' ? 'border-rose-400' : 'border-slate-100'}`}
+                  />
+                ) : (
+                  <div className={`w-20 h-20 rounded-full border-4 shadow-sm bg-slate-100 flex items-center justify-center ${subscription.plan === 'yearly' ? 'border-amber-400' : subscription.plan === 'monthly' ? 'border-rose-400' : 'border-slate-100'}`}>
+                    <UserIcon className="w-8 h-8 text-slate-400" />
+                  </div>
+                )}
+                
+                {/* Avatar Upload Button */}
+                <label className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <Camera className="w-5 h-5 text-white" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    className="hidden"
+                  />
+                </label>
+                
                 {/* Level Badge */}
                 <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white">
-                    {USER_PROFILE.level}
+                    {displayUser.level || 1}
                 </div>
             </div>
+            
             <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-2xl font-black text-slate-800">{USER_PROFILE.name}</h2>
+                    <h2 className="text-2xl font-black text-slate-800">{displayUser.name}</h2>
+                    
+                    {/* Edit Profile Button */}
+                    <button
+                      onClick={() => setIsEditingProfile(!isEditingProfile)}
+                      className="p-1 text-slate-400 hover:text-rose-500 transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    
                     {/* Membership Badge */}
                     {subscription.isPremium ? (
                         <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 shadow-sm ${
@@ -259,18 +358,78 @@ const Account: React.FC = () => {
                     )}
                 </div>
                 
-                <p className="text-sm text-slate-500 font-medium mb-2">{USER_PROFILE.title}</p>
+                <p className="text-sm text-slate-500 font-medium mb-2">{displayUser.title}</p>
                 
                 {/* XP Bar */}
                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 mb-1">
                     <span>XP</span>
                     <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-50">
-                        <div className="h-full bg-rose-500 rounded-full" style={{ width: `${USER_PROFILE.xp}%` }}></div>
+                        <div className="h-full bg-rose-500 rounded-full" style={{ width: `${displayUser.xp || 0}%` }}></div>
                     </div>
-                    <span>{USER_PROFILE.xp}/{USER_PROFILE.nextLevelXp}</span>
+                    <span>{displayUser.xp || 0}/100</span>
                 </div>
+                
+                {/* Error Message */}
+                {profileError && (
+                  <p className="text-xs text-rose-500 mt-2">{profileError}</p>
+                )}
+            </div>
+
+            {/* Settings & Sign Out Buttons */}
+            <div className="flex flex-col gap-2">
+                <button 
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                  title="Cài đặt"
+                >
+                    <Settings className="w-4 h-4" />
+                </button>
+                <button 
+                    onClick={handleSignOut}
+                    className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+                    title="Đăng xuất"
+                >
+                    <LogOut className="w-4 h-4" />
+                </button>
             </div>
          </div>
+
+         {/* Profile Edit Form */}
+         {isEditingProfile && (
+           <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 mt-4">
+             <h4 className="font-bold text-slate-800 mb-3">Chỉnh sửa thông tin</h4>
+             <div className="space-y-3">
+               <div>
+                 <label className="block text-xs font-bold text-slate-500 mb-1">Tên hiển thị</label>
+                 <input
+                   type="text"
+                   defaultValue={displayUser.name}
+                   className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-rose-200 outline-none"
+                   placeholder="Nhập tên của bạn"
+                 />
+               </div>
+               <div>
+                 <label className="block text-xs font-bold text-slate-500 mb-1">Tiêu đề</label>
+                 <input
+                   type="text"
+                   defaultValue={displayUser.title}
+                   className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-rose-200 outline-none"
+                   placeholder="Ví dụ: Foodie sành ăn"
+                 />
+               </div>
+               <div className="flex gap-2">
+                 <button 
+                   onClick={() => setIsEditingProfile(false)}
+                   className="flex-1 py-2 px-4 bg-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-300 transition-colors"
+                 >
+                   Hủy
+                 </button>
+                 <button className="flex-1 py-2 px-4 bg-rose-500 text-white rounded-lg text-sm font-bold hover:bg-rose-600 transition-colors">
+                   Lưu
+                 </button>
+               </div>
+             </div>
+           </div>
+         )}
 
          {/* Badges */}
          <div className="flex gap-3 mt-6 pt-6 border-t border-dashed border-slate-100 overflow-x-auto no-scrollbar">
@@ -303,6 +462,17 @@ const Account: React.FC = () => {
                  <ChevronRight className="w-4 h-4 text-amber-600 group-hover:translate-x-1 transition-transform" />
              </Link>
          )}
+
+         {/* Sign Out Section */}
+         <div className="mt-4 pt-4 border-t border-dashed border-slate-100">
+           <button 
+             onClick={handleSignOut}
+             className="w-full flex items-center justify-center gap-2 p-3 text-slate-500 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors group"
+           >
+             <LogOut className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+             <span className="text-sm font-bold">Đăng xuất</span>
+           </button>
+         </div>
       </div>
 
       {/* --- 2. TABS --- */}
