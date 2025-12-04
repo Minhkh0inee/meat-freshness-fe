@@ -76,7 +76,7 @@ const Premium: React.FC = () => {
                         <Check className="w-5 h-5 text-emerald-400" /> Truy cập Trợ lý AI (3 Personas)
                     </li>
                     <li className="flex items-center gap-3 text-slate-300 text-sm">
-                        <Check className="w-5 h-5 text-emerald-400" /> <strong>Scan thịt với AI thế hệ mới (Gemini 3 Pro)</strong>
+                        <Check className="w-5 h-5 text-emerald-400" /> <strong>Scan thịt với AI thế hệ mới</strong>
                     </li>
                     <li className="flex items-center gap-3 text-slate-300 text-sm">
                         <Check className="w-5 h-5 text-emerald-400" /> Độ chính xác cao hơn 99%

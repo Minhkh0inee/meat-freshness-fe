@@ -41,7 +41,7 @@ const Scanner: React.FC = () => {
   const getScanStage = (prog: number) => {
     if (prog < 30) return { text: "Khởi động Vision AI...", icon: <ScanLine className="w-6 h-6 text-rose-500 animate-pulse" /> };
     if (prog < 60) return { text: `Phân tích ${isProMode ? '(Deep Learning)...' : 'sắc tố...'}`, icon: <Palette className="w-6 h-6 text-blue-500 animate-pulse" /> };
-    if (prog < 85) return { text: "Kiểm tra cấu trúc vi sinh...", icon: <Microscope className="w-6 h-6 text-emerald-500 animate-pulse" /> };
+    if (prog < 85) return { text: "Kiểm tra cấu trúc bề mặt...", icon: <Microscope className="w-6 h-6 text-emerald-500 animate-pulse" /> };
     if (prog < 100) return { text: "Tổng hợp kết quả...", icon: <Brain className="w-6 h-6 text-purple-500 animate-pulse" /> };
     return { text: "Hoàn tất!", icon: <CheckCircle className="w-6 h-6 text-rose-600" /> };
   };
