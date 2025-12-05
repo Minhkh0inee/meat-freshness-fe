@@ -3,7 +3,7 @@ import { GoogleGenAI, Type, Schema, Chat, Content } from "@google/genai";
 import { AnalysisResult, MeatType, SafetyStatus, SensoryData, AIPersona } from "../types";
 
 // Initialize the client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 const responseSchema: Schema = {
   type: Type.OBJECT,
