@@ -1,5 +1,5 @@
 import api from './api';
-import { AnalysisResult, SensoryData, StorageEnvironment, ContainerType, ActionStatus } from '../types';
+import { AnalysisResult, SensoryData, StorageEnvironment, ContainerType, ActionStatus } from '../../types';
 
 export interface CreateScanRequest {
   // Remove imageUrl, will be uploaded as file
