@@ -1,12 +1,8 @@
+
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authAPI, handleAuthError } from '../services/authService';
+import { User } from '@/types';
 
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  avatar?: string;
-}
 
 interface AuthState {
   user: User | null;
@@ -20,7 +16,7 @@ interface AuthContextType extends AuthState {
   signOut: () => Promise<void>;
 }
 
-type AuthAction =
+export type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_USER'; payload: User | null }
   | { type: 'SIGN_OUT' };
@@ -76,7 +72,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = localStorage.getItem('authToken');
       
       if (token) {
-        // Verify token with server
         const user = await authAPI.getCurrentUser();
         dispatch({ type: 'SET_USER', payload: user });
       } else {
@@ -84,7 +79,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      // Token invalid, clear storage
       localStorage.removeItem('user');
       localStorage.removeItem('authToken');
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -96,11 +90,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       const response = await authAPI.signIn({ email, password });
-      
-      // Save token and user data
       localStorage.setItem('authToken', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
-      
       dispatch({ type: 'SET_USER', payload: response.user });
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -114,11 +105,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       const response = await authAPI.signUp({ name, email, password });
-      
-      // Save token and user data
       localStorage.setItem('authToken', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
-      
       dispatch({ type: 'SET_USER', payload: response.user });
     } catch (error) {
       dispatch({ type: 'SET_LOADING', payload: false });
@@ -129,12 +117,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
-      await authAPI.signOut();
+      // await authAPI.signOut();
     } catch (error) {
       console.error('Sign out API failed:', error);
-      // Continue with local sign out even if API fails
     } finally {
-      // Clear local storage
       localStorage.removeItem('user');
       localStorage.removeItem('authToken');
       dispatch({ type: 'SIGN_OUT' });

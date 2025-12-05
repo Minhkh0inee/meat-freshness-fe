@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '../../../context/AuthContext';
 import { SignInRequest, ValidationError } from '@/components/Auth/interface';
 import { validateEmail, validatePassword } from '@/components/Auth/validation';
 import Input from '@/components/Auth/Input';
 import Button from '@/components/Auth/Button';
+import { useAuth } from '@/src/context/AuthContext';
 
 
 export const SignIn: React.FC = () => {
@@ -112,7 +112,7 @@ export const SignIn: React.FC = () => {
             />
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center">
+              {/* <div className="flex items-center">
                 <input
                   id="remember-me"
                   name="remember-me"
@@ -122,20 +122,20 @@ export const SignIn: React.FC = () => {
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
                   Ghi nhớ đăng nhập
                 </label>
-              </div>
+              </div> */}
 
-              <Link
+              {/* <Link
                 to="/forgot-password"
                 className="text-sm text-blue-600 hover:text-blue-500"
               >
                 Quên mật khẩu?
-              </Link>
+              </Link> */}
             </div>
 
             <Button
               type="submit"
               className="w-full"
-              loading={isLoading} // Sử dụng isLoading từ AuthContext
+              loading={isLoading} 
             >
               Đăng nhập
             </Button>

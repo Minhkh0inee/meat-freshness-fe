@@ -1,21 +1,6 @@
+import { User } from '@/types';
 import api from './api';
-import { User } from '../context/AuthContext';
-
-export interface SignInRequest {
-  email: string;
-  password: string;
-}
-
-export interface SignUpRequest {
-  name: string;
-  email: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  user: User;
-  token: string;  // Chỉ có access token
-}
+import { AuthResponse, SignInRequest, SignUpRequest } from '@/components/Auth/interface';
 
 export const authAPI = {
   // Đăng nhập

@@ -9,8 +9,8 @@ const Button: React.FC<{
       type={type}
       disabled={loading}
       className={`
-        bg-blue-600 text-white font-medium rounded-lg px-4 py-3 hover:bg-blue-700 
-        focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors
+        bg-rose-500 text-white font-medium rounded-lg px-4 py-3 hover:bg-rose-700 
+        focus:outline-none focus:ring-2 transition-colors
         ${loading ? 'opacity-50 cursor-not-allowed' : ''}
         ${className}
       `}
