@@ -36,7 +36,7 @@ import { useAuth } from '../context/AuthContext';
 const Account: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, signOut } = useAuth();
-  const { user, subscription, loading: profileLoading, error: profileError, uploadAvatar } = useProfile();
+  const { user, subscription, loading: profileLoading, error: profileError } = useProfile();
   const { getUserScans, updateScanStatus, loading: scanLoading, error: scanError } = useScan();
   console.log(getUserScans)
   // --- STATE ---
@@ -268,29 +268,29 @@ const Account: React.FC = () => {
   };
 
   // Handle avatar upload
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  // const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  //   const file = event.target.files?.[0];
+  //   if (!file) return;
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('File quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB');
-      return;
-    }
+  //   // Validate file size (max 5MB)
+  //   if (file.size > 5 * 1024 * 1024) {
+  //     alert('File quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB');
+  //     return;
+  //   }
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Vui lòng chọn file ảnh');
-      return;
-    }
+  //   // Validate file type
+  //   if (!file.type.startsWith('image/')) {
+  //     alert('Vui lòng chọn file ảnh');
+  //     return;
+  //   }
 
-    try {
-      await uploadAvatar(file);
-      alert('Cập nhật ảnh đại diện thành công!');
-    } catch (error) {
-      alert('Lỗi upload ảnh. Vui lòng thử lại.');
-    }
-  };
+  //   try {
+  //     await uploadAvatar(file);
+  //     alert('Cập nhật ảnh đại diện thành công!');
+  //   } catch (error) {
+  //     alert('Lỗi upload ảnh. Vui lòng thử lại.');
+  //   }
+  // };
 
   // --- HELPER: TIME ---
   const getHoursLeft = (deadline: number) => {
@@ -409,12 +409,12 @@ const Account: React.FC = () => {
                 {/* Avatar Upload Button */}
                 <label className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                   <Camera className="w-5 h-5 text-white" />
-                  <input
+                  {/* <input
                     type="file"
                     accept="image/*"
                     onChange={handleAvatarUpload}
                     className="hidden"
-                  />
+                  /> */}
                 </label>
                 
                 {/* Level Badge */}
