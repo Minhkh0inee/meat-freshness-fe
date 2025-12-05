@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Tạo instance axios với cấu hình base
 const api = axios.create({
-  baseURL: "https://api-meatfreshness.minh-khoi.com",
+  baseURL: import.meta.env.VITE_API_BASE_URL || "https://api-meatfreshness.minh-khoi.com",
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
