@@ -17,7 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   // Hide navigation on premium page
   if (isPremiumPage) {
-      return <>{children}</>;
+      return <Outlet/>;
   }
 
 

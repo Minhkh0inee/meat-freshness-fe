@@ -17,15 +17,16 @@ function AppRoutes() {
   return (
     <Routes>
       <Route element={<Layout/>}>
-      <Route index element={<LandingPage />} />
-      <Route path="/scan" element={<Scanner />} />
-      <Route path="/assistant" element={<AIAssistant />} />
-      <Route path="/account" element={<Account />} />
-      <Route path="/dictionary" element={<MeatDictionary />} />
-      <Route path="/blog" element={<Blog />} />
-      <Route path="/history" element={<History />} />
-      <Route path="/premium" element={<Premium />} />
+        <Route index element={<LandingPage />} />
+        <Route path="/scan" element={<Scanner />} />
+        <Route path="/assistant" element={<AIAssistant />} />
+        <Route path="/account" element={<Account />} />
+        <Route path="/dictionary" element={<MeatDictionary />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/history" element={<History />} />
+        <Route path="/premium" element={<Premium />} />
       </Route>
+      
       <Route element={<AuthLayout />}>
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
