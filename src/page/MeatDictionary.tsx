@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Wind, Drumstick, Beef, ChefHat, ShieldCheck, Utensils, Eye, Fingerprint, AlertTriangle, Thermometer, Package, Snowflake, Refrigerator, Layers, Archive } from 'lucide-react';
-import { MeatType, DictionaryLevelData } from '../types';
+import { MeatType, DictionaryLevelData } from '@/types';
 
 // Extended Data Interface for Deep Education
 interface ExtendedDictionaryData extends DictionaryLevelData {

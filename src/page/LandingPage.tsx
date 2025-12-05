@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Microscope, Database, ArrowRight, ShieldCheck, Smartphone, Zap, ChefHat, Beef, Drumstick, BookOpen, Camera, Search, FileText, Thermometer, Snowflake, Clock, ChevronRight, FlaskConical, Activity, Droplets, Wind, Palette, Bot, Sparkles } from 'lucide-react';
-import { MeatType } from '../types';
-import { blogPosts } from '../utils/mockData';
+import { MeatType } from '../../types';
+// import { blogPosts } from '../utils/mockData';
 
 const LandingPage: React.FC = () => {
   const meatPreviews = [
@@ -69,7 +69,7 @@ const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-rose-50 text-slate-900 font-sans relative overflow-x-hidden pb-20">
       
       {/* Background Gradients */}
-      <div className="absolute top-0 left-0 w-full h-[600px] bg-gradient-to-b from-pink-100 via-rose-50 to-transparent opacity-60 z-0"></div>
+      <div className="absolute top-0 left-0 w-full h-[600px] bg-linear-to-b from-pink-100 via-rose-50 to-transparent opacity-60 z-0"></div>
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-rose-200/40 rounded-full blur-3xl"></div>
       <div className="absolute top-40 -left-20 w-72 h-72 bg-blue-100/40 rounded-full blur-3xl"></div>
 
@@ -91,7 +91,7 @@ const LandingPage: React.FC = () => {
             
             <h1 className="text-5xl lg:text-7xl font-black tracking-tight mb-6 leading-[1.1] text-slate-900 animate-fade-in-up delay-100 font-serif">
                 An Toàn Trọn Gói <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-400">Chọn Thịt Tươi Rói</span>
+                <span className="text-transparent bg-clip-text bg-linear-to-r from-rose-500 to-pink-400">Chọn Thịt Tươi Rói</span>
             </h1>
             
             <p className="text-slate-500 text-lg lg:text-xl mb-10 leading-relaxed animate-fade-in-up delay-200 font-medium max-w-xl">
@@ -100,7 +100,7 @@ const LandingPage: React.FC = () => {
 
             <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-4 animate-fade-in-up delay-300 relative z-20 mb-12 lg:mb-0">
                 <Link to="/scan" className="group relative overflow-hidden bg-slate-900 text-white font-bold text-lg py-4 px-8 rounded-2xl shadow-xl shadow-rose-200 hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 w-full sm:w-auto text-center">
-                    <div className="absolute inset-0 bg-gradient-to-r from-rose-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div className="absolute inset-0 bg-linear-to-r from-rose-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <span className="relative flex items-center justify-center gap-3">
                         Kiểm tra ngay <ArrowRight className="w-5 h-5" />
                     </span>
@@ -189,7 +189,7 @@ const LandingPage: React.FC = () => {
                         }
                     ].map((item, idx) => (
                         <div key={idx} className="flex flex-col gap-4 p-6 rounded-3xl border border-slate-50 bg-slate-50/50 hover:bg-white hover:shadow-lg transition-all duration-300">
-                            <div className={`w-14 h-14 rounded-2xl ${item.bg} ${item.color} flex items-center justify-center flex-shrink-0 mb-2`}>
+                            <div className={`w-14 h-14 rounded-2xl ${item.bg} ${item.color} flex items-center justify-center shrink-0 mb-2`}>
                                 <item.icon className="w-7 h-7" />
                             </div>
                             <div>
@@ -313,7 +313,7 @@ const LandingPage: React.FC = () => {
         </div>
 
         {/* Quick Storage Tips */}
-        <div className="mb-20 bg-gradient-to-r from-rose-50 to-white py-12">
+        <div className="mb-20 bg-linear-to-r from-rose-50 to-white py-12">
              <div className="max-w-7xl mx-auto px-6 lg:px-12">
                 <div className="flex justify-between items-end mb-8">
                     <h2 className="text-3xl font-black text-slate-800">Mẹo bảo quản</h2>
@@ -322,7 +322,7 @@ const LandingPage: React.FC = () => {
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {tips.map((tip, idx) => (
-                        <div key={idx} className={`p-6 lg:p-8 rounded-[2rem] border border-white shadow-sm ${tip.bg} flex flex-col justify-between min-h-[180px] hover:-translate-y-1 transition-transform duration-300`}>
+                        <div key={idx} className={`p-6 lg:p-8 rounded-4xl border border-white shadow-sm ${tip.bg} flex flex-col justify-between min-h-[180px] hover:-translate-y-1 transition-transform duration-300`}>
                             <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-sm mb-4">
                                 {tip.icon}
                             </div>
@@ -346,7 +346,7 @@ const LandingPage: React.FC = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {blogPosts.slice(0, 3).map((post) => (
+                {/* {blogPosts.slice(0, 3).map((post) => (
                     <Link to={`/blog/${post.id}`} key={post.id} className="group flex flex-col bg-white p-4 rounded-[2rem] shadow-sm border border-rose-50 hover:shadow-xl hover:shadow-rose-100/50 transition-all duration-300 h-full">
                         <div className="h-48 rounded-2xl overflow-hidden mb-4 relative">
                             <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
@@ -360,7 +360,7 @@ const LandingPage: React.FC = () => {
                             </div>
                         </div>
                     </Link>
-                ))}
+                ))} */}
             </div>
         </div>
 

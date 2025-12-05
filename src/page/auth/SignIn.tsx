@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 
-interface SignUpRequest {
-  name: string;
+interface SignInRequest {
   email: string;
   password: string;
-  confirmPassword: string;
 }
 
 interface ValidationError {
@@ -15,7 +13,7 @@ interface ValidationError {
   message: string;
 }
 
-// Validation functions
+// Simple validation functions
 const validateEmail = (email: string): string | null => {
   if (!email) return 'Email là bắt buộc';
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -29,19 +27,7 @@ const validatePassword = (password: string): string | null => {
   return null;
 };
 
-const validateName = (name: string): string | null => {
-  if (!name) return 'Tên là bắt buộc';
-  if (name.length < 2) return 'Tên phải có ít nhất 2 ký tự';
-  return null;
-};
-
-const validateConfirmPassword = (password: string, confirmPassword: string): string | null => {
-  if (!confirmPassword) return 'Xác nhận mật khẩu là bắt buộc';
-  if (password !== confirmPassword) return 'Mật khẩu xác nhận không khớp';
-  return null;
-};
-
-// Input component - giống như SignIn
+// Input component
 const Input: React.FC<{
   label?: string;
   type?: string;
@@ -93,7 +79,7 @@ const Input: React.FC<{
   );
 };
 
-// Button component - giống như SignIn
+// Button component
 const Button: React.FC<{
   children: React.ReactNode;
   type?: 'button' | 'submit';
@@ -122,19 +108,16 @@ const Button: React.FC<{
   );
 };
 
-export const SignUp: React.FC = () => {
+export const SignIn: React.FC = () => {
   const navigate = useNavigate();
-  const { signUp, isLoading } = useAuth(); // Sử dụng useAuth hook
+  const { signIn, isLoading } = useAuth(); // Sử dụng useAuth hook
   
-  const [formData, setFormData] = useState<SignUpRequest>({
-    name: '',
+  const [formData, setFormData] = useState<SignInRequest>({
     email: '',
     password: '',
-    confirmPassword: '',
   });
   
   const [errors, setErrors] = useState<ValidationError[]>([]);
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
@@ -153,29 +136,14 @@ export const SignUp: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check terms acceptance
-    if (!acceptedTerms) {
-      setErrors([{
-        field: 'terms',
-        message: 'Bạn cần đồng ý với điều khoản sử dụng'
-      }]);
-      return;
-    }
-    
     // Validate form
     const validationErrors: ValidationError[] = [];
-    
-    const nameError = validateName(formData.name);
-    if (nameError) validationErrors.push({ field: 'name', message: nameError });
     
     const emailError = validateEmail(formData.email);
     if (emailError) validationErrors.push({ field: 'email', message: emailError });
     
     const passwordError = validatePassword(formData.password);
     if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
-    
-    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
-    if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
     
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
@@ -186,16 +154,16 @@ export const SignUp: React.FC = () => {
     
     try {
       // Call API thông qua AuthContext
-      await signUp(formData.name, formData.email, formData.password);
+      await signIn(formData.email, formData.password);
       
       // Nếu thành công, navigate to main app
       navigate('/scan');
       
     } catch (error: any) {
-      console.error('Sign up failed:', error);
+      console.error('Sign in failed:', error);
       setErrors([{
         field: 'general',
-        message: error.message || 'Đăng ký thất bại. Vui lòng thử lại.'
+        message: error.message || 'Đăng nhập thất bại. Vui lòng thử lại.'
       }]);
     }
   };
@@ -205,10 +173,10 @@ export const SignUp: React.FC = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Tạo tài khoản
+            Đăng nhập
           </h2>
           <p className="text-gray-600">
-            Tham gia cùng chúng tôi ngay hôm nay
+            Chào mừng bạn quay trở lại
           </p>
         </div>
 
@@ -221,24 +189,13 @@ export const SignUp: React.FC = () => {
             )}
 
             <Input
-              label="Họ và tên"
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              error={getFieldError('name')}
-              placeholder="Nhập họ và tên"
-              required
-            />
-
-            <Input
               label="Email"
               type="email"
               name="email"
               value={formData.email}
               onChange={handleInputChange}
               error={getFieldError('email')}
-              placeholder="Nhập địa chỉ email"
+              placeholder="Nhập email của bạn"
               required
             />
 
@@ -249,52 +206,38 @@ export const SignUp: React.FC = () => {
               value={formData.password}
               onChange={handleInputChange}
               error={getFieldError('password')}
-              placeholder="Tạo mật khẩu (tối thiểu 6 ký tự)"
+              placeholder="Nhập mật khẩu"
               showPasswordToggle
               required
             />
 
-            <Input
-              label="Xác nhận mật khẩu"
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleInputChange}
-              error={getFieldError('confirmPassword')}
-              placeholder="Nhập lại mật khẩu"
-              showPasswordToggle
-              required
-            />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
+                  Ghi nhớ đăng nhập
+                </label>
+              </div>
 
-            <div className="flex items-center">
-              <input
-                id="accept-terms"
-                name="accept-terms"
-                type="checkbox"
-                checked={acceptedTerms}
-                onChange={(e) => {
-                  setAcceptedTerms(e.target.checked);
-                  if (e.target.checked && getFieldError('terms')) {
-                    setErrors(prev => prev.filter(error => error.field !== 'terms'));
-                  }
-                }}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-              />
-              <label htmlFor="accept-terms" className="ml-2 block text-sm text-gray-900">
-                Tôi đồng ý với điều khoản sử dụng và chính sách bảo mật
-              </label>
+              <Link
+                to="/forgot-password"
+                className="text-sm text-blue-600 hover:text-blue-500"
+              >
+                Quên mật khẩu?
+              </Link>
             </div>
-            
-            {getFieldError('terms') && (
-              <p className="text-sm text-red-600">{getFieldError('terms')}</p>
-            )}
 
             <Button
               type="submit"
               className="w-full"
               loading={isLoading} // Sử dụng isLoading từ AuthContext
             >
-              Tạo tài khoản
+              Đăng nhập
             </Button>
           </form>
 
@@ -310,12 +253,12 @@ export const SignUp: React.FC = () => {
 
             <div className="mt-6 text-center">
               <p className="text-sm text-gray-600">
-                Đã có tài khoản?{' '}
+                Chưa có tài khoản?{' '}
                 <Link
-                  to="/signin"
+                  to="/signup"
                   className="font-medium text-blue-600 hover:text-blue-500"
                 >
-                  Đăng nhập ngay
+                  Đăng ký ngay
                 </Link>
               </p>
             </div>

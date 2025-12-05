@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChefHat, ShoppingBag, PartyPopper, Send, Lock, Crown, Sparkles, Plus, MessageSquare, Clock, Menu, X, Trash2 } from 'lucide-react';
-import { AIPersona, ChatMessage, ChatSession } from '../types';
-import { createChatSession } from '../services/geminiService';
+import { createChatSession } from '../../services/geminiService';
 import { Chat, Content } from "@google/genai";
+import { AIPersona, ChatMessage, ChatSession } from '@/types';
 
 const AIAssistant: React.FC = () => {
   const navigate = useNavigate();

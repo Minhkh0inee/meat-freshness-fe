@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, Share2, Bookmark } from 'lucide-react';
-import { blogPosts } from '../utils/mockData';
+import { blogPosts } from '../src/data/mockData';
 
 const BlogDetail: React.FC = () => {
   const { id } = useParams();

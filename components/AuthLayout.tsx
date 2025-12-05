@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-
+import { Outlet } from "react-router-dom";
 interface AuthLayoutProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-orange-50">
+    <div className="min-h-screen bg-linear-to-br from-rose-50 via-white to-orange-50">
       {/* Header */}
       <header className="p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -34,7 +34,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
 
       {/* Main Content */}
       <main className="flex-1 px-4">
-        {children}
+        <Outlet />
       </main>
 
       {/* Footer */}

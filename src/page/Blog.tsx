@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Search, Calendar, User, ChevronRight, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { blogPosts } from '../utils/mockData';
+import { blogPosts } from '../data/mockData';
 
 const Blog: React.FC = () => {
   const [filter, setFilter] = useState<string>('All');

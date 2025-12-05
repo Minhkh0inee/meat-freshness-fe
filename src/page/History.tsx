@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { HistoryItem, ActionStatus, BlogPost, StorageEnvironment, ContainerType } from '../types';
+import { HistoryItem, ActionStatus, BlogPost, StorageEnvironment, ContainerType } from '../../types';
 import { 
     Trash2, Clock, Utensils, AlertCircle, CheckCircle2, Trash, Bookmark, BookOpen, ChevronRight, 
     Refrigerator, Snowflake, Package, Sun, Box, ShoppingBag, Ban 
 } from 'lucide-react';
-import { blogPosts } from '../utils/mockData';
+import { blogPosts } from '../data/mockData';
 
 const History: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'storage' | 'saved'>('storage');

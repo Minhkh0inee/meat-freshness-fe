@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { HistoryItem, ActionStatus, BlogPost, StorageEnvironment, ContainerType } from '../types';
+import { HistoryItem, ActionStatus, BlogPost, StorageEnvironment, ContainerType } from '@/types';
 import { 
   Clock, 
   Bookmark, 
@@ -28,10 +28,10 @@ import {
   Settings,
   RefreshCw
 } from 'lucide-react';
-import { blogPosts } from '../utils/mockData';
-import { useProfile } from '../hooks/useProfile';
-import { useAuth } from '../context/AuthContext';
-import { useScan } from '../hooks/useScan';
+import { blogPosts } from '../data/mockData';
+import { useProfile } from '../../hooks/useProfile';
+import { useAuth } from '../../context/AuthContext';
+import { useScan } from '../../hooks/useScan';
 
 const Account: React.FC = () => {
   const navigate = useNavigate();

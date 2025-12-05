@@ -1,11 +1,11 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Camera, Upload, Save, RefreshCw, Zap, CheckCircle, AlertTriangle, XCircle, AlertOctagon, ChevronRight, BookOpen, Microscope, UploadCloud, ScanLine, Palette, Brain, TestTube, Fingerprint, Wind, Droplets, ArrowDown, Sun, Focus, Aperture, Lightbulb, ShieldCheck, Scan, Construction, SlidersHorizontal, Crown, Sparkles } from 'lucide-react';
-import { analyzeMeatImage, refineAnalysis } from '../services/geminiService';
-import { AnalysisResult, SafetyStatus, HistoryItem, MeatType, SensoryData, StorageEnvironment, ContainerType } from '../types';
+import { analyzeMeatImage, refineAnalysis } from '../../services/geminiService';
+import { AnalysisResult, SafetyStatus, HistoryItem, MeatType, SensoryData, StorageEnvironment, ContainerType } from '../../types';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
-import { useScan } from '../hooks/useScan';
-import { useAuth } from '../context/AuthContext';
+import { useScan } from '../../hooks/useScan';
+import { useAuth } from '../../context/AuthContext';
 
 const Scanner: React.FC = () => {
   const navigate = useNavigate();
