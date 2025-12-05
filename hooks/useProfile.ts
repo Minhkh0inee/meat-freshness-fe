@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { authAPI, handleAuthError } from '../services/authService';
+import { authAPI, handleAuthError } from '../src/services/authService';
 import { User, UserSubscription } from '../types';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '@/src/context/AuthContext';
 
 export const useProfile = () => {
   const { user: authUser, isAuthenticated } = useAuth();
@@ -49,46 +49,46 @@ export const useProfile = () => {
     }
   };
 
-  // Update profile
-  const updateProfile = async (updates: Partial<User>) => {
-    setLoading(true);
-    setError(null);
+  // // Update profile
+  // const updateProfile = async (updates: Partial<User>) => {
+  //   setLoading(true);
+  //   setError(null);
     
-    try {
-      const updatedUser = await authAPI.updateProfile(updates);
-      setUser(updatedUser);
-      return updatedUser;
-    } catch (err) {
-      const errorMessage = handleAuthError(err);
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
+  //   try {
+  //     const updatedUser = await authAPI.updateProfile(updates);
+  //     setUser(updatedUser);
+  //     return updatedUser;
+  //   } catch (err) {
+  //     const errorMessage = handleAuthError(err);
+  //     setError(errorMessage);
+  //     throw err;
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
-  // Upload avatar
-  const uploadAvatar = async (file: File) => {
-    setLoading(true);
-    setError(null);
+  // // Upload avatar
+  // const uploadAvatar = async (file: File) => {
+  //   setLoading(true);
+  //   setError(null);
     
-    try {
-      const { avatarUrl } = await authAPI.uploadAvatar(file);
+  //   try {
+  //     const { avatarUrl } = await authAPI.uploadAvatar(file);
       
-      // Update user với avatar mới
-      if (user) {
-        const updatedUser = { ...user, avatar: avatarUrl };
-        setUser(updatedUser);
-        return avatarUrl;
-      }
-    } catch (err) {
-      const errorMessage = handleAuthError(err);
-      setError(errorMessage);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     // Update user với avatar mới
+  //     if (user) {
+  //       const updatedUser = { ...user, avatar: avatarUrl };
+  //       setUser(updatedUser);
+  //       return avatarUrl;
+  //     }
+  //   } catch (err) {
+  //     const errorMessage = handleAuthError(err);
+  //     setError(errorMessage);
+  //     throw err;
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   useEffect(() => {
     loadProfile();
@@ -100,7 +100,7 @@ export const useProfile = () => {
     loading,
     error,
     loadProfile,
-    updateProfile,
-    uploadAvatar,
+    // updateProfile,
+    // uploadAvatar,
   };
 };

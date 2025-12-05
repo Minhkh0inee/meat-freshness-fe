@@ -30,8 +30,8 @@ import {
 } from 'lucide-react';
 import { blogPosts } from '../data/mockData';
 import { useProfile } from '../../hooks/useProfile';
-import { useAuth } from '../../context/AuthContext';
 import { useScan } from '../../hooks/useScan';
+import { useAuth } from '../context/AuthContext';
 
 const Account: React.FC = () => {
   const navigate = useNavigate();

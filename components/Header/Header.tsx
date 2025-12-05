@@ -1,4 +1,5 @@
-import { useAuth } from '@/context/AuthContext';
+
+import { useAuth } from '@/src/context/AuthContext';
 import { BookOpen, Bot, ChefHat, ScanLine, Sparkles, User } from 'lucide-react';
 import React from 'react'
 import { Link } from 'react-router-dom';

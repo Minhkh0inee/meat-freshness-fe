@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { scanAPI, CreateScanRequest, ScanResponse, convertAnalysisToScanRequest } from '../services/scanService';
+import { scanAPI, CreateScanRequest, ScanResponse, convertAnalysisToScanRequest } from '../src/services/scanService';
 import { AnalysisResult, SensoryData, StorageEnvironment, ContainerType } from '../types';
-import { handleAuthError } from '../services/authService';
+import { handleAuthError } from '../src/services/authService';
 
 export const useScan = () => {
   const [loading, setLoading] = useState(false);
