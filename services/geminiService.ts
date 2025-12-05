@@ -91,7 +91,7 @@ export const analyzeMeatImage = async (base64Image: string, useProModel: boolean
     if (!text) throw new Error("No response from AI");
 
     const data = JSON.parse(text);
-    
+    console.log("data: ", text)
     return {
       ...data,
       timestamp: Date.now(),

@@ -25,23 +25,33 @@ import {
   User as UserIcon,
   Loader,
   LogOut,
-  Settings
+  Settings,
+  RefreshCw
 } from 'lucide-react';
 import { blogPosts } from '../utils/mockData';
 import { useProfile } from '../hooks/useProfile';
 import { useAuth } from '../context/AuthContext';
+import { useScan } from '../hooks/useScan';
 
 const Account: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, signOut } = useAuth();
   const { user, subscription, loading: profileLoading, error: profileError, uploadAvatar } = useProfile();
-  
+  const { getUserScans, updateScanStatus, loading: scanLoading, error: scanError } = useScan();
+  console.log(getUserScans)
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<'storage' | 'saved'>('storage');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [savedPosts, setSavedPosts] = useState<BlogPost[]>([]);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalScans, setTotalScans] = useState(0);
+  const [result, setResult] = useState([])
+  const limit = 10;
 
   // Handle sign out
   const handleSignOut = async () => {
@@ -51,7 +61,6 @@ const Account: React.FC = () => {
         navigate('/signin');
       } catch (error) {
         console.error('Sign out error:', error);
-        // Fallback: force redirect even if API fails
         navigate('/signin');
       }
     }
@@ -64,140 +73,180 @@ const Account: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  // --- LOAD DATA ---
-  const loadData = () => {
-    try {
-      // 1. Load History
-      const historyStr = localStorage.getItem('meatHistory');
-      if (historyStr) {
-        const parsed = JSON.parse(historyStr);
-        setHistory(Array.isArray(parsed) ? parsed : []);
-      }
+  // Convert API scan to HistoryItem format
+  const convertScanToHistoryItem = (scan: any): HistoryItem => {
+    console.log("scan: ", scan)
+    return {
+      id: scan.id,
+      imageUrl: scan.imageUrl,
+      meatType: scan.meatType,
+      freshnessScore: scan.freshnessScore,
+      freshnessLevel: scan.freshnessLevel,
+      safetyStatus: scan.safetyStatus,
+      visualCues: scan.visualCues,
+      summary: scan.summary,
+      timestamp: new Date(scan.createdAt).getTime(),
+      storageDeadline: scan.storageDeadline || Date.now() + (3 * 24 * 60 * 60 * 1000),
+      actionStatus: scan.actionStatus || 'storing',
+      storageEnvironment: scan.storageEnvironment || 'fridge',
+      containerType: scan.containerType || 'bag',
+    };
+  };
 
-      // 2. Load Saved Posts
+  // --- LOAD DATA ---
+  const loadStorageData = async () => {
+    if (!isAuthenticated) return;
+
+    try {
+      const result = await getUserScans(currentPage, limit);
+      setResult(result.scans)
+      setTotalPages(result.totalPages);
+      setTotalScans(result.total);
+      
+      console.log(`✅ Loaded ${result.scans.length} scans from API`);
+      
+    } catch (error) {
+      console.error('❌ Failed to load from API:', error);
+      setHistory([]);
+      setTotalPages(1);
+      setTotalScans(0);
+    }
+  };
+
+  const loadSavedPosts = () => {
+    try {
       const savedIdsStr = localStorage.getItem('savedPosts');
       const savedIds: string[] = savedIdsStr ? JSON.parse(savedIdsStr) : [];
       
-      // Filter blogPosts based on saved IDs
       if (blogPosts && Array.isArray(blogPosts) && Array.isArray(savedIds)) {
-          const posts = blogPosts.filter(p => savedIds.includes(p.id));
-          setSavedPosts(posts);
+        const posts = blogPosts.filter(p => savedIds.includes(p.id));
+        setSavedPosts(posts);
       } else {
-          setSavedPosts([]);
+        setSavedPosts([]);
       }
-
-      // 3. Load Subscription
-      const isPrem = localStorage.getItem('isPremium') === 'true';
-      const planType = localStorage.getItem('premiumPlan') || 'free';
-      setSubscription({isPremium: isPrem, plan: planType});
-
     } catch (error) {
-      console.error("Load data error", error);
-      setHistory([]);
+      console.error("Load saved posts error", error);
       setSavedPosts([]);
+    }
+  };
+
+  const loadData = () => {
+    if (activeTab === 'storage') {
+      loadStorageData();
+    } else {
+      loadSavedPosts();
     }
   };
 
   useEffect(() => {
     loadData();
-    window.addEventListener('storage', loadData);
-    window.addEventListener('premium-update', loadData);
-    return () => {
-        window.removeEventListener('storage', loadData);
-        window.removeEventListener('premium-update', loadData);
-    };
-  }, [activeTab]); 
-
-  // --- RECALCULATE DEADLINE LOGIC ---
-  const recalculateDeadline = (
-      level: number, 
-      env: StorageEnvironment, 
-      container: ContainerType, 
-      baseTimestamp: number
-    ): number => {
-    const oneDay = 24 * 60 * 60 * 1000;
-    const oneHour = 60 * 60 * 1000;
-    const start = baseTimestamp || Date.now();
-
-    let duration = 0;
-
-    // 1. Environment Base Time
-    if (env === 'fridge') {
-        if (level === 1) duration = 4 * oneDay;
-        else if (level === 2) duration = 3 * oneDay;
-        else if (level === 3) duration = 1 * oneDay;
-        else duration = 0;
-    } else if (env === 'freezer') {
-        if (level === 1) duration = 90 * oneDay;
-        else if (level === 2) duration = 60 * oneDay;
-        else if (level === 3) duration = 7 * oneDay;
-        else duration = 0;
-    } else if (env === 'room_temp') {
-        // Meat at room temp spoils very fast
-        if (level === 1) duration = 4 * oneHour;
-        else if (level === 2) duration = 2 * oneHour;
-        else duration = 0;
-    }
-
-    // 2. Container Modifiers
-    if (container === 'box') {
-        // Box protects slightly better/cleaner
-        if (env === 'room_temp') duration += 1 * oneHour; // +1h if boxed outside
-        else duration *= 1.1; // +10% duration
-    } else if (container === 'none') {
-        // No packaging is bad
-        if (env === 'freezer') duration *= 0.5; // Freezer burn risk
-        else duration *= 0.8; // Dries out or contaminates
-    }
-    
-    return start + duration;
-  };
+  }, [activeTab, currentPage, isAuthenticated]);
 
   // --- ACTIONS: STORAGE ---
-  const updateStatus = (id: string, status: ActionStatus) => {
-    const updatedHistory = history.map(item => 
-      item.id === id ? { ...item, actionStatus: status } : item
-    );
-    setHistory(updatedHistory);
-    localStorage.setItem('meatHistory', JSON.stringify(updatedHistory));
-  };
-
-  const updateStorageConfig = (id: string, updates: { env?: StorageEnvironment, container?: ContainerType }) => {
-      const updatedHistory = history.map(item => {
-          if (item.id === id) {
-              const newEnv = updates.env || item.storageEnvironment || 'fridge';
-              const newContainer = updates.container || item.containerType || 'bag';
-              
-              // Recalculate deadline
-              const newDeadline = recalculateDeadline(item.freshnessLevel, newEnv, newContainer, item.timestamp);
-              
-              return { 
-                  ...item, 
-                  storageEnvironment: newEnv,
-                  containerType: newContainer,
-                  storageDeadline: newDeadline,
-                  actionStatus: (item.actionStatus === 'cooked' || item.actionStatus === 'discarded') ? 'storing' : item.actionStatus 
-              };
-          }
-          return item;
-      });
+  const updateStatus = async (id: string, status: ActionStatus) => {
+    try {
+      // Update via API
+      await updateScanStatus(id, { actionStatus: status });
+      
+      // Update local state optimistically
+      const updatedHistory = history.map(item => 
+        item.id === id ? { ...item, actionStatus: status } : item
+      );
       setHistory(updatedHistory);
-      localStorage.setItem('meatHistory', JSON.stringify(updatedHistory));
-  };
-
-  const deleteItem = (id: string) => {
-     if(window.confirm("Xóa mục này khỏi lịch sử?")) {
-         const updatedHistory = history.filter(item => item.id !== id);
-         setHistory(updatedHistory);
-         localStorage.setItem('meatHistory', JSON.stringify(updatedHistory));
-     }
-  };
-
-  const clearHistory = () => {
-    if (window.confirm("Bạn có chắc muốn xóa toàn bộ tủ lạnh ảo?")) {
-      setHistory([]);
-      localStorage.removeItem('meatHistory');
+      
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('Có lỗi khi cập nhật. Vui lòng thử lại.');
+      // Reload data to revert optimistic update
+      loadStorageData();
     }
+  };
+
+  const updateStorageConfig = async (id: string, updates: { env?: StorageEnvironment, container?: ContainerType }) => {
+    try {
+      const item = history.find(h => h.id === id);
+      if (!item) return;
+
+      const newEnv = updates.env || item.storageEnvironment || 'fridge';
+      const newContainer = updates.container || item.containerType || 'bag';
+      
+      // Recalculate deadline
+      const newDeadline = recalculateDeadline(item.freshnessLevel, newEnv, newContainer, item.timestamp);
+      
+      const updateData = {
+        storageEnvironment: newEnv,
+        containerType: newContainer,
+        storageDeadline: newDeadline,
+        actionStatus: (item.actionStatus === 'cooked' || item.actionStatus === 'discarded') ? 'storing' : item.actionStatus
+      };
+
+      // Update via API
+      await updateScanStatus(id, updateData);
+      
+      // Update local state optimistically
+      const updatedHistory = history.map(item => {
+        if (item.id === id) {
+          return { ...item, ...updateData };
+        }
+        return item;
+      });
+      
+      setHistory(updatedHistory);
+      
+    } catch (error) {
+      console.error('Error updating storage config:', error);
+      alert('Có lỗi khi cập nhật cấu hình. Vui lòng thử lại.');
+      // Reload data to revert optimistic update
+      loadStorageData();
+    }
+  };
+
+  const deleteItem = async (id: string) => {
+    if (!window.confirm("Xóa mục này khỏi lịch sử?")) return;
+
+    try {
+      // Delete via API
+      
+      // Update local state optimistically
+      const updatedHistory = history.filter(item => item.id !== id);
+      setHistory(updatedHistory);
+      
+      // Update total count
+      setTotalScans(prev => prev - 1);
+      
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      alert('Có lỗi khi xóa. Vui lòng thử lại.');
+      // Reload data to revert optimistic update
+      loadStorageData();
+    }
+  };
+
+  const clearAllScans = async () => {
+    if (!window.confirm("Bạn có chắc muốn xóa toàn bộ lịch sử scan?")) return;
+
+    try {
+
+      
+      // Clear local state
+      setHistory([]);
+      setTotalScans(0);
+      setTotalPages(1);
+      setCurrentPage(1);
+      
+      alert('Đã xóa toàn bộ lịch sử scan thành công!');
+      
+    } catch (error) {
+      console.error('Error clearing all scans:', error);
+      alert('Có lỗi khi xóa. Vui lòng thử lại.');
+      // Reload data to show current state
+      loadStorageData();
+    }
+  };
+
+  const refreshData = () => {
+    setCurrentPage(1);
+    loadStorageData();
   };
 
   // --- ACTIONS: SAVED POSTS ---
@@ -205,16 +254,16 @@ const Account: React.FC = () => {
     e.preventDefault(); 
     e.stopPropagation();
     try {
-        const currentSavedIdsStr = localStorage.getItem('savedPosts');
-        let currentSavedIds: string[] = currentSavedIdsStr ? JSON.parse(currentSavedIdsStr) : [];
-        
-        if (Array.isArray(currentSavedIds)) {
-            const newIds = currentSavedIds.filter(sid => sid !== id);
-            localStorage.setItem('savedPosts', JSON.stringify(newIds));
-            setSavedPosts(prev => prev.filter(p => p.id !== id));
-        }
+      const currentSavedIdsStr = localStorage.getItem('savedPosts');
+      let currentSavedIds: string[] = currentSavedIdsStr ? JSON.parse(currentSavedIdsStr) : [];
+      
+      if (Array.isArray(currentSavedIds)) {
+        const newIds = currentSavedIds.filter(sid => sid !== id);
+        localStorage.setItem('savedPosts', JSON.stringify(newIds));
+        setSavedPosts(prev => prev.filter(p => p.id !== id));
+      }
     } catch (e) {
-        console.error("Error unsaving post", e);
+      console.error("Error unsaving post", e);
     }
   };
 
@@ -265,6 +314,51 @@ const Account: React.FC = () => {
      return { label: `Còn ${hours}h`, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' };
   };
 
+  // --- RECALCULATE DEADLINE LOGIC ---
+  const recalculateDeadline = (
+      level: number, 
+      env: StorageEnvironment, 
+      container: ContainerType, 
+      baseTimestamp: number
+    ): number => {
+    const oneDay = 24 * 60 * 60 * 1000;
+    const oneHour = 60 * 60 * 1000;
+    const start = baseTimestamp || Date.now();
+
+    let duration = 0;
+
+    // 1. Environment Base Time
+    if (env === 'fridge') {
+        if (level === 1) duration = 4 * oneDay;
+        else if (level === 2) duration = 3 * oneDay;
+        else if (level === 3) duration = 1 * oneDay;
+        else duration = 0;
+    } else if (env === 'freezer') {
+        if (level === 1) duration = 90 * oneDay;
+        else if (level === 2) duration = 60 * oneDay;
+        else if (level === 3) duration = 7 * oneDay;
+        else duration = 0;
+    } else if (env === 'room_temp') {
+        // Meat at room temp spoils very fast
+        if (level === 1) duration = 4 * oneHour;
+        else if (level === 2) duration = 2 * oneHour;
+        else duration = 0;
+    }
+
+    // 2. Container Modifiers
+    if (container === 'box') {
+        // Box protects slightly better/cleaner
+        if (env === 'room_temp') duration += 1 * oneHour; // +1h if boxed outside
+        else duration *= 1.1; // +10% duration
+    } else if (container === 'none') {
+        // No packaging is bad
+        if (env === 'freezer') duration *= 0.5; // Freezer burn risk
+        else duration *= 0.8; // Dries out or contaminates
+    }
+    
+    return start + duration;
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="max-w-2xl mx-auto py-24 text-center">
@@ -276,7 +370,7 @@ const Account: React.FC = () => {
     );
   }
 
-  // Default values for UI
+  // Safe default values for UI - fix the null error
   const displayUser = user || {
     name: 'Người dùng',
     avatar: '',
@@ -304,10 +398,10 @@ const Account: React.FC = () => {
                   <img 
                       src={displayUser.avatar} 
                       alt="Avatar" 
-                      className={`w-20 h-20 rounded-full object-cover border-4 shadow-sm bg-slate-200 ${subscription.plan === 'yearly' ? 'border-amber-400' : subscription.plan === 'monthly' ? 'border-rose-400' : 'border-slate-100'}`}
+                      className={`w-20 h-20 rounded-full object-cover border-4 shadow-sm bg-slate-200 ${subscription?.plan === 'yearly' ? 'border-amber-400' : subscription?.plan === 'monthly' ? 'border-rose-400' : 'border-slate-100'}`}
                   />
                 ) : (
-                  <div className={`w-20 h-20 rounded-full border-4 shadow-sm bg-slate-100 flex items-center justify-center ${subscription.plan === 'yearly' ? 'border-amber-400' : subscription.plan === 'monthly' ? 'border-rose-400' : 'border-slate-100'}`}>
+                  <div className={`w-20 h-20 rounded-full border-4 shadow-sm bg-slate-100 flex items-center justify-center ${subscription?.plan === 'yearly' ? 'border-amber-400' : subscription?.plan === 'monthly' ? 'border-rose-400' : 'border-slate-100'}`}>
                     <UserIcon className="w-8 h-8 text-slate-400" />
                   </div>
                 )}
@@ -331,7 +425,7 @@ const Account: React.FC = () => {
             
             <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-2xl font-black text-slate-800">{displayUser.name}</h2>
+                    <h2 className="text-2xl font-black text-slate-800">{displayUser.name || 'Người dùng'}</h2>
                     
                     {/* Edit Profile Button */}
                     <button
@@ -342,7 +436,7 @@ const Account: React.FC = () => {
                     </button>
                     
                     {/* Membership Badge */}
-                    {subscription.isPremium ? (
+                    {subscription?.isPremium ? (
                         <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 shadow-sm ${
                             subscription.plan === 'yearly' 
                             ? 'bg-gradient-to-r from-amber-300 to-yellow-500 text-white' 
@@ -358,7 +452,7 @@ const Account: React.FC = () => {
                     )}
                 </div>
                 
-                <p className="text-sm text-slate-500 font-medium mb-2">{displayUser.title}</p>
+                <p className="text-sm text-slate-500 font-medium mb-2">{displayUser.title || 'Thành viên mới'}</p>
                 
                 {/* XP Bar */}
                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 mb-1">
@@ -402,7 +496,7 @@ const Account: React.FC = () => {
                  <label className="block text-xs font-bold text-slate-500 mb-1">Tên hiển thị</label>
                  <input
                    type="text"
-                   defaultValue={displayUser.name}
+                   defaultValue={displayUser.name || ''}
                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-rose-200 outline-none"
                    placeholder="Nhập tên của bạn"
                  />
@@ -411,7 +505,7 @@ const Account: React.FC = () => {
                  <label className="block text-xs font-bold text-slate-500 mb-1">Tiêu đề</label>
                  <input
                    type="text"
-                   defaultValue={displayUser.title}
+                   defaultValue={displayUser.title || ''}
                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-rose-200 outline-none"
                    placeholder="Ví dụ: Foodie sành ăn"
                  />
@@ -448,7 +542,7 @@ const Account: React.FC = () => {
              ))}
          </div>
          
-         {!subscription.isPremium && (
+         {!subscription?.isPremium && (
              <Link to="/premium" className="mt-4 flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-100 to-orange-100 border border-amber-200 group cursor-pointer">
                  <div className="flex items-center gap-3">
                      <div className="p-1.5 bg-white/50 rounded-lg text-amber-600">
@@ -477,177 +571,239 @@ const Account: React.FC = () => {
 
       {/* --- 2. TABS --- */}
       <div className="flex p-1 bg-slate-100/80 rounded-2xl">
-          <button 
-             onClick={() => setActiveTab('storage')}
-             className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'storage' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-              <Clock className="w-4 h-4" /> Bảo quản ({history.length})
-          </button>
-          <button 
-             onClick={() => setActiveTab('saved')}
-             className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'saved' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-          >
-              <Bookmark className="w-4 h-4" /> Đã lưu ({savedPosts.length})
-          </button>
+        <button 
+           onClick={() => setActiveTab('storage')}
+           className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'storage' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+        >
+            <Clock className="w-4 h-4" /> 
+            Bảo quản ({totalScans})
+            {scanLoading && <Loader className="w-3 h-3 animate-spin ml-1" />}
+        </button>
+        <button 
+           onClick={() => setActiveTab('saved')}
+           className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${activeTab === 'saved' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+        >
+            <Bookmark className="w-4 h-4" /> Đã lưu ({savedPosts.length})
+        </button>
       </div>
 
       {/* --- 3. CONTENT --- */}
       
       {/* STORAGE TAB CONTENT */}
       {activeTab === 'storage' && (
-          <div className="space-y-4">
-              {history.length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-3xl border-2 border-dashed border-slate-100">
-                      <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Clock className="w-8 h-8 text-rose-300" />
-                      </div>
-                      <p className="text-slate-400 text-sm">Tủ lạnh trống trơn.</p>
-                      <Link to="/scan" className="text-rose-500 font-bold text-sm hover:underline mt-2 block">Quét thịt ngay</Link>
-                  </div>
-              ) : (
-                  <>
-                    <div className="flex justify-end">
-                        <button onClick={clearHistory} className="text-xs font-bold text-slate-400 hover:text-rose-500 flex items-center gap-1 px-2 py-1 rounded hover:bg-rose-50 transition-colors">
-                            <Trash className="w-3 h-3" /> Xóa tất cả
-                        </button>
-                    </div>
-                    {history.map(item => {
-                        const status = getDisplayStatus(item);
-                        const currentEnv = item.storageEnvironment || 'fridge';
-                        const currentContainer = item.containerType || 'bag';
-                        const isSpoiled = item.freshnessLevel >= 4;
-                        const isEditing = editingItemId === item.id;
-
-                        return (
-                            <div key={item.id} className={`bg-white p-4 rounded-2xl border ${status.border} shadow-sm gap-4 transition-all hover:shadow-md flex flex-col`}>
-                                <div className="flex gap-4">
-                                    <div className="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 relative">
-                                        <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.meatType} />
-                                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm text-white text-[9px] font-bold text-center py-0.5">
-                                            LV.{item.freshnessLevel}
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex-1 flex flex-col justify-between">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <h4 className="font-bold text-slate-800">{item.meatType}</h4>
-                                                <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${status.bg} ${status.color}`}>
-                                                    {status.label}
-                                                </span>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <button 
-                                                    onClick={() => setEditingItemId(isEditing ? null : item.id)} 
-                                                    className={`p-1.5 rounded-lg transition-colors ${isEditing ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400 hover:text-amber-500'}`}
-                                                >
-                                                    <Package className="w-4 h-4" />
-                                                </button>
-                                                <Link to={`/dictionary?type=${encodeURIComponent(item.meatType)}&level=${item.freshnessLevel}`} className="p-1.5 bg-slate-50 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-colors">
-                                                    <BookOpen className="w-4 h-4" />
-                                                </Link>
-                                                <button onClick={() => deleteItem(item.id)} className="p-1.5 bg-slate-50 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-colors">
-                                                    <Trash className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </div>
-                                        
-                                        {/* Summary Info */}
-                                        {!isEditing && item.actionStatus !== 'discarded' && item.actionStatus !== 'cooked' && (
-                                            <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 font-medium">
-                                                <span className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded">
-                                                    {currentEnv === 'fridge' ? <Refrigerator className="w-3 h-3"/> : currentEnv === 'freezer' ? <Snowflake className="w-3 h-3"/> : <Sun className="w-3 h-3"/>} 
-                                                    {currentEnv === 'fridge' ? 'Tủ mát' : currentEnv === 'freezer' ? 'Tủ đông' : 'Nhiệt độ phòng'}
-                                                </span>
-                                                <span className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded">
-                                                    {currentContainer === 'box' ? <Box className="w-3 h-3"/> : currentContainer === 'bag' ? <ShoppingBag className="w-3 h-3"/> : <Ban className="w-3 h-3"/>}
-                                                    {currentContainer === 'box' ? 'Hộp kín' : currentContainer === 'bag' ? 'Túi/Màng' : 'Không gói'}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Detailed Storage Config Panel */}
-                                {isEditing && item.actionStatus === 'storing' && (
-                                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 animate-fade-in mt-2">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            {/* Column 1: Environment */}
-                                            <div className="space-y-2">
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Môi trường</p>
-                                                <div className="flex flex-col gap-1">
-                                                    <button 
-                                                        onClick={() => updateStorageConfig(item.id, { env: 'fridge' })}
-                                                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentEnv === 'fridge' ? 'bg-white shadow-sm text-sky-600 ring-1 ring-sky-100' : 'text-slate-500 hover:bg-slate-100'}`}
-                                                    >
-                                                        <Refrigerator className="w-3 h-3" /> Tủ mát
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => updateStorageConfig(item.id, { env: 'freezer' })}
-                                                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentEnv === 'freezer' ? 'bg-white shadow-sm text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-100'}`}
-                                                    >
-                                                        <Snowflake className="w-3 h-3" /> Tủ đông
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => updateStorageConfig(item.id, { env: 'room_temp' })}
-                                                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentEnv === 'room_temp' ? 'bg-white shadow-sm text-amber-600 ring-1 ring-amber-100' : 'text-slate-500 hover:bg-slate-100'}`}
-                                                    >
-                                                        <Sun className="w-3 h-3" /> Nhiệt độ phòng
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* Column 2: Container */}
-                                            <div className="space-y-2">
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vật chứa</p>
-                                                <div className="flex flex-col gap-1">
-                                                    <button 
-                                                        onClick={() => updateStorageConfig(item.id, { container: 'box' })}
-                                                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentContainer === 'box' ? 'bg-white shadow-sm text-emerald-600 ring-1 ring-emerald-100' : 'text-slate-500 hover:bg-slate-100'}`}
-                                                    >
-                                                        <Box className="w-3 h-3" /> Hộp kín
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => updateStorageConfig(item.id, { container: 'bag' })}
-                                                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentContainer === 'bag' ? 'bg-white shadow-sm text-purple-600 ring-1 ring-purple-100' : 'text-slate-500 hover:bg-slate-100'}`}
-                                                    >
-                                                        <ShoppingBag className="w-3 h-3" /> Túi / Màng
-                                                    </button>
-                                                    <button 
-                                                        onClick={() => updateStorageConfig(item.id, { container: 'none' })}
-                                                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentContainer === 'none' ? 'bg-white shadow-sm text-rose-600 ring-1 ring-rose-100' : 'text-slate-500 hover:bg-slate-100'}`}
-                                                    >
-                                                        <Ban className="w-3 h-3" /> Không gói
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Quick Actions (Cooked/Discarded) */}
-                                {item.actionStatus !== 'cooked' && item.actionStatus !== 'discarded' && (
-                                     <div className="flex gap-2 pt-2 border-t border-dashed border-slate-100">
-                                        {/* Hide "Cooked" if Meat is Spoiled (Level 4-5) */}
-                                        {!isSpoiled && (
-                                            <button onClick={() => updateStatus(item.id, 'cooked')} className="flex-1 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1">
-                                                <Utensils className="w-3 h-3" /> Đã nấu
-                                            </button>
-                                        )}
-                                        <button onClick={() => updateStatus(item.id, 'discarded')} className="flex-1 py-1.5 rounded-lg bg-slate-50 text-slate-500 text-xs font-bold hover:bg-slate-100 transition-colors flex items-center justify-center gap-1">
-                                            <Trash className="w-3 h-3" /> Vứt bỏ
-                                        </button>
-                                     </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                  </>
-              )}
+        <div className="space-y-4">
+          {/* Header with refresh button */}
+          <div className="flex justify-between items-center">
+            <div className="text-xs text-slate-500">
+              Dữ liệu từ máy chủ
+              {totalScans > 0 && ` • Trang ${currentPage}/${totalPages}`}
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={refreshData}
+                disabled={scanLoading}
+                className="text-xs font-bold text-slate-400 hover:text-rose-500 flex items-center gap-1 px-2 py-1 rounded hover:bg-rose-50 transition-colors"
+              >
+                <RefreshCw className={`w-3 h-3 ${scanLoading ? 'animate-spin' : ''}`} /> 
+                Làm mới
+              </button>
+              <button 
+                onClick={clearAllScans} 
+                className="text-xs font-bold text-slate-400 hover:text-rose-500 flex items-center gap-1 px-2 py-1 rounded hover:bg-rose-50 transition-colors"
+              >
+                <Trash className="w-3 h-3" /> Xóa tất cả
+              </button>
+            </div>
           </div>
+
+          {/* Error message */}
+          {scanError && (
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-rose-600 text-sm">
+              ⚠️ {scanError}
+            </div>
+          )}
+
+          {/* Loading state */}
+          {scanLoading && result.length === 0 && (
+            <div className="text-center py-12 bg-white rounded-3xl border border-slate-100">
+              <Loader className="w-8 h-8 animate-spin text-rose-500 mx-auto mb-4" />
+              <p className="text-slate-500 text-sm">Đang tải dữ liệu...</p>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!scanLoading && result.length === 0 && (
+            <div className="text-center py-12 bg-white rounded-3xl border-2 border-dashed border-slate-100">
+              <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Clock className="w-8 h-8 text-rose-300" />
+              </div>
+              <p className="text-slate-400 text-sm">Tủ lạnh trống trơn.</p>
+              <Link to="/scan" className="text-rose-500 font-bold text-sm hover:underline mt-2 block">Quét thịt ngay</Link>
+            </div>
+          )}
+
+          {/* History Items */}
+          {result.map(item => {
+            const status = getDisplayStatus(item);
+            const currentEnv = item.storageEnvironment || 'fridge';
+            const currentContainer = item.containerType || 'bag';
+            const isSpoiled = item.freshnessLevel >= 4;
+            const isEditing = editingItemId === item.id;
+
+            return (
+              <div key={item.id} className={`bg-white p-4 rounded-2xl border ${status.border} shadow-sm gap-4 transition-all hover:shadow-md flex flex-col relative`}>
+                
+                <div className="flex gap-4">
+                  <div className="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 relative">
+                    <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.meatType} />
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm text-white text-[9px] font-bold text-center py-0.5">
+                      LV.{item.freshnessLevel}
+                    </div>
+                  </div>
+                  
+                  <div className="flex-1 flex flex-col justify-between">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-bold text-slate-800">{item.meatType}</h4>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${status.bg} ${status.color}`}>
+                          {status.label}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => setEditingItemId(isEditing ? null : item.id)} 
+                          className={`p-1.5 rounded-lg transition-colors ${isEditing ? 'bg-amber-100 text-amber-600' : 'bg-slate-50 text-slate-400 hover:text-amber-500'}`}
+                        >
+                          <Package className="w-4 h-4" />
+                        </button>
+                        <Link to={`/dictionary?type=${encodeURIComponent(item.meatType)}&level=${item.freshnessLevel}`} className="p-1.5 bg-slate-50 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-colors">
+                          <BookOpen className="w-4 h-4" />
+                        </Link>
+                        <button onClick={() => deleteItem(item.id)} className="p-1.5 bg-slate-50 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition-colors">
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Summary Info */}
+                    {!isEditing && item.actionStatus !== 'discarded' && item.actionStatus !== 'cooked' && (
+                      <div className="flex items-center gap-2 mt-2 text-xs text-slate-500 font-medium">
+                        <span className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded">
+                          {currentEnv === 'fridge' ? <Refrigerator className="w-3 h-3"/> : currentEnv === 'freezer' ? <Snowflake className="w-3 h-3"/> : <Sun className="w-3 h-3"/>} 
+                          {currentEnv === 'fridge' ? 'Tủ mát' : currentEnv === 'freezer' ? 'Tủ đông' : 'Nhiệt độ phòng'}
+                        </span>
+                        <span className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded">
+                          {currentContainer === 'box' ? <Box className="w-3 h-3"/> : currentContainer === 'bag' ? <ShoppingBag className="w-3 h-3"/> : <Ban className="w-3 h-3"/>}
+                          {currentContainer === 'box' ? 'Hộp kín' : currentContainer === 'bag' ? 'Túi/Màng' : 'Không gói'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Detailed Storage Config Panel */}
+                {isEditing && item.actionStatus === 'storing' && (
+                  <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 animate-fade-in mt-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Column 1: Environment */}
+                      <div className="space-y-2">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Môi trường</p>
+                          <div className="flex flex-col gap-1">
+                              <button 
+                                  onClick={() => updateStorageConfig(item.id, { env: 'fridge' })}
+                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentEnv === 'fridge' ? 'bg-white shadow-sm text-sky-600 ring-1 ring-sky-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                              >
+                                  <Refrigerator className="w-3 h-3" /> Tủ mát
+                              </button>
+                              <button 
+                                  onClick={() => updateStorageConfig(item.id, { env: 'freezer' })}
+                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentEnv === 'freezer' ? 'bg-white shadow-sm text-blue-600 ring-1 ring-blue-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                              >
+                                  <Snowflake className="w-3 h-3" /> Tủ đông
+                              </button>
+                              <button 
+                                  onClick={() => updateStorageConfig(item.id, { env: 'room_temp' })}
+                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentEnv === 'room_temp' ? 'bg-white shadow-sm text-amber-600 ring-1 ring-amber-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                              >
+                                  <Sun className="w-3 h-3" /> Nhiệt độ phòng
+                              </button>
+                          </div>
+                      </div>
+
+                      {/* Column 2: Container */}
+                      <div className="space-y-2">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vật chứa</p>
+                          <div className="flex flex-col gap-1">
+                              <button 
+                                  onClick={() => updateStorageConfig(item.id, { container: 'box' })}
+                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentContainer === 'box' ? 'bg-white shadow-sm text-emerald-600 ring-1 ring-emerald-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                              >
+                                  <Box className="w-3 h-3" /> Hộp kín
+                              </button>
+                              <button 
+                                  onClick={() => updateStorageConfig(item.id, { container: 'bag' })}
+                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentContainer === 'bag' ? 'bg-white shadow-sm text-purple-600 ring-1 ring-purple-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                              >
+                                  <ShoppingBag className="w-3 h-3" /> Túi / Màng
+                              </button>
+                              <button 
+                                  onClick={() => updateStorageConfig(item.id, { container: 'none' })}
+                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${currentContainer === 'none' ? 'bg-white shadow-sm text-rose-600 ring-1 ring-rose-100' : 'text-slate-500 hover:bg-slate-100'}`}
+                              >
+                                  <Ban className="w-3 h-3" /> Không gói
+                              </button>
+                          </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick Actions (Cooked/Discarded) */}
+                {item.actionStatus !== 'cooked' && item.actionStatus !== 'discarded' && (
+                   <div className="flex gap-2 pt-2 border-t border-dashed border-slate-100">
+                      {/* Hide "Cooked" if Meat is Spoiled (Level 4-5) */}
+                      {!isSpoiled && (
+                          <button onClick={() => updateStatus(item.id, 'cooked')} className="flex-1 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1">
+                              <Utensils className="w-3 h-3" /> Đã nấu
+                          </button>
+                      )}
+                      <button onClick={() => updateStatus(item.id, 'discarded')} className="flex-1 py-1.5 rounded-lg bg-slate-50 text-slate-500 text-xs font-bold hover:bg-slate-100 transition-colors flex items-center justify-center gap-1">
+                          <Trash className="w-3 h-3" /> Vứt bỏ
+                      </button>
+                   </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center gap-2 mt-6">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage <= 1 || scanLoading}
+                className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Trước
+              </button>
+              
+              <span className="px-4 py-2 bg-rose-500 text-white rounded-lg text-sm font-bold">
+                {currentPage} / {totalPages}
+              </span>
+              
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage >= totalPages || scanLoading}
+                className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sau
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* SAVED CONTENT */}
+      {/* SAVED CONTENT - Keep as is since it's for blog posts */}
       {activeTab === 'saved' && (
           <div className="space-y-4">
               {savedPosts.length === 0 ? (

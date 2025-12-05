@@ -1,20 +1,38 @@
-
-import React, { useState, useRef, useEffect } from 'react';
-import { Camera, CheckCircle, AlertTriangle, XCircle, AlertOctagon, ChevronRight, BookOpen, Microscope, UploadCloud, ScanLine, Palette, Zap, Brain, TestTube, Fingerprint, Wind, Droplets, ArrowDown, Sun, Focus, Aperture, Lightbulb, ShieldCheck, Scan, Construction, SlidersHorizontal, Crown, Sparkles } from 'lucide-react';
+import React, { useState, useRef, useCallback } from 'react';
+import { Camera, Upload, Save, RefreshCw, Zap, CheckCircle, AlertTriangle, XCircle, AlertOctagon, ChevronRight, BookOpen, Microscope, UploadCloud, ScanLine, Palette, Brain, TestTube, Fingerprint, Wind, Droplets, ArrowDown, Sun, Focus, Aperture, Lightbulb, ShieldCheck, Scan, Construction, SlidersHorizontal, Crown, Sparkles } from 'lucide-react';
 import { analyzeMeatImage, refineAnalysis } from '../services/geminiService';
 import { AnalysisResult, SafetyStatus, HistoryItem, MeatType, SensoryData, StorageEnvironment, ContainerType } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
+import { useScan } from '../hooks/useScan';
+import { useAuth } from '../context/AuthContext';
 
 const Scanner: React.FC = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const { saveScan, loading: savingToAPI } = useScan();
+  
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [showSensoryForm, setShowSensoryForm] = useState(false);
-  
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [sensoryData, setSensoryData] = useState<SensoryData>({
+    smell: 0,
+    texture: 0,
+    moisture: 0,
+    drip: 0
+  });
+  const [storageConfig, setStorageConfig] = useState<{
+    environment: StorageEnvironment;
+    container: ContainerType;
+  }>({
+    environment: 'fridge',
+    container: 'bag'
+  });
+
   // Initialize Pro Mode based on LocalStorage AND Premium Status
   const [isProMode, setIsProMode] = useState(() => {
       const savedMode = localStorage.getItem('scanProMode');
@@ -25,14 +43,6 @@ const Scanner: React.FC = () => {
   // Track the ID of the current scan session to update history instead of creating duplicates
   const [currentScanId, setCurrentScanId] = useState<string | null>(null);
   
-  // Sensory Form State
-  const [sensoryData, setSensoryData] = useState<SensoryData>({
-    smell: 0,
-    texture: 0,
-    moisture: 0,
-    drip: 0
-  });
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
   const sensoryFormRef = useRef<HTMLDivElement>(null);
@@ -48,7 +58,7 @@ const Scanner: React.FC = () => {
 
   const currentStage = getScanStage(progress);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (result && resultRef.current && !showSensoryForm) {
       // Only scroll on mobile where things are stacked
       if (window.innerWidth < 1024) {
@@ -59,7 +69,7 @@ const Scanner: React.FC = () => {
     }
   }, [result, showSensoryForm]);
 
-  useEffect(() => {
+  React.useEffect(() => {
       if (showSensoryForm && sensoryFormRef.current) {
           setTimeout(() => {
               sensoryFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -94,56 +104,105 @@ const Scanner: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const calculateDeadline = (level: number): number => {
+  // Helper to save to local history
+  const saveToHistory = (data: AnalysisResult, base64: string, id?: string): string => {
+    const historyItem: HistoryItem = {
+        id: id || Date.now().toString(),
+        imageUrl: base64,
+        storageDeadline: Date.now() + 7 * 24 * 60 * 60 * 1000, // Placeholder
+        actionStatus: 'storing',
+        storageEnvironment: 'fridge',
+        containerType: 'bag',
+        ...data,
+    };
+
+    const existingHistory = localStorage.getItem('meatHistory');
+    const history = existingHistory ? JSON.parse(existingHistory) : [];
+    
+    // If updating existing scan, remove old one
+    const filteredHistory = id 
+      ? history.filter((item: any) => item.id !== id)
+      : history;
+    
+    const updatedHistory = [historyItem, ...filteredHistory];
+    localStorage.setItem('meatHistory', JSON.stringify(updatedHistory));
+    return historyItem.id;
+  };
+
+  // Calculate storage deadline helper
+  const calculateStorageDeadline = (level: number, env: StorageEnvironment, container: ContainerType): number => {
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
     
-    // Default assumption: Fridge + Bag
-    switch (level) {
-        case 1: return now + (3 * oneDay); 
-        case 2: return now + (2 * oneDay); 
-        case 3: return now + (1 * oneDay); 
-        default: return now;
+    let baseDays = 0;
+    
+    if (env === 'fridge') {
+      baseDays = level === 1 ? 4 : level === 2 ? 3 : level === 3 ? 1 : 0;
+    } else if (env === 'freezer') {
+      baseDays = level === 1 ? 90 : level === 2 ? 60 : level === 3 ? 7 : 0;
+    } else if (env === 'room_temp') {
+      baseDays = level === 1 ? 0.17 : level === 2 ? 0.08 : 0;
     }
+    
+    if (container === 'box') {
+      baseDays *= 1.1;
+    } else if (container === 'none') {
+      baseDays *= 0.8;
+    }
+    
+    return now + (baseDays * oneDay);
   };
 
-  // Modified logic to support overwriting/updating history
-  const saveToHistory = (data: AnalysisResult, img: string, overwriteId?: string): string => {
-    // Do not save Beef or Chicken results (Development Mode)
-    if (data.meatType === MeatType.BEEF || data.meatType === MeatType.CHICKEN) {
-        return '';
+  // Handle save to storage (both local and API)
+  const handleSaveToStorage = async () => {
+    if (!result || !image) return;
+
+    try {
+      // 1. Save to localStorage (update with final deadline)
+      const historyItem: HistoryItem = {
+        id: currentScanId || Date.now().toString(),
+        imageUrl: image,
+        storageDeadline: calculateStorageDeadline(result.freshnessLevel, storageConfig.environment, storageConfig.container),
+        actionStatus: 'storing' as const,
+        storageEnvironment: storageConfig.environment,
+        containerType: storageConfig.container,
+        ...result,
+      };
+
+      const existingHistory = localStorage.getItem('meatHistory');
+      const history = existingHistory ? JSON.parse(existingHistory) : [];
+      
+      // If updating existing scan, remove old one
+      const filteredHistory = currentScanId 
+        ? history.filter((item: any) => item.id !== currentScanId)
+        : history;
+      
+      const updatedHistory = [historyItem, ...filteredHistory];
+      localStorage.setItem('meatHistory', JSON.stringify(updatedHistory));
+
+      // 2. Save to API if user is authenticated
+      if (isAuthenticated) {
+        try {
+          console.log('Attempting to save scan to API...');
+          await saveScan(result, image, sensoryData, storageConfig);
+          console.log('✅ Scan saved to server successfully');
+        } catch (apiError) {
+          console.error('❌ Failed to save to server:', apiError);
+          // Continue with local save even if API fails
+          alert('Đã lưu offline. Sẽ đồng bộ khi có mạng.');
+        }
+      } else {
+        console.log('User not authenticated, only saving locally');
+      }
+
+      // 3. Show success message and reset
+      alert('Đã lưu vào kho thành công!');
+      handleReset();
+      
+    } catch (error) {
+      console.error('Error saving scan:', error);
+      alert('Có lỗi khi lưu. Vui lòng thử lại.');
     }
-
-    if (data.meatType !== MeatType.UNKNOWN) {
-        const storageDeadline = calculateDeadline(data.freshnessLevel);
-        const isExpired = data.freshnessLevel >= 4;
-        
-        // Use existing ID if overwriting, otherwise create new ID
-        const id = overwriteId || Date.now().toString();
-
-        const historyItem: HistoryItem = {
-            ...data,
-            id: id,
-            imageUrl: img,
-            storageDeadline: storageDeadline,
-            actionStatus: isExpired ? 'expired' : 'storing',
-            storageEnvironment: 'fridge',
-            containerType: 'bag'
-        };
-        
-        const existingHistory = JSON.parse(localStorage.getItem('meatHistory') || '[]');
-        
-        // If overwriting, filter out the old item first
-        const filteredHistory = overwriteId 
-            ? existingHistory.filter((item: HistoryItem) => item.id !== overwriteId) 
-            : existingHistory;
-
-        // Add new/updated item to the top
-        localStorage.setItem('meatHistory', JSON.stringify([historyItem, ...filteredHistory]));
-        
-        return id;
-    }
-    return '';
   };
 
   const processImage = async (base64: string) => {
@@ -174,7 +233,7 @@ const Scanner: React.FC = () => {
             setResult(data);
             setLoading(false);
             
-            // Only save to history if it is NOT Beef or Chicken (Development modes)
+            // Initial save to history (Local Storage only) upon first analysis
             if (data.meatType !== MeatType.BEEF && data.meatType !== MeatType.CHICKEN) {
                 const newId = saveToHistory(data, base64);
                 setCurrentScanId(newId);
@@ -259,7 +318,9 @@ const Scanner: React.FC = () => {
             if (currentScanId) {
                 saveToHistory(refinedResult, image, currentScanId);
             } else if (refinedResult.meatType !== MeatType.BEEF && refinedResult.meatType !== MeatType.CHICKEN) {
-                saveToHistory(refinedResult, image);
+                // If ID was somehow null, create a new history item
+                const newId = saveToHistory(refinedResult, image);
+                setCurrentScanId(newId);
             }
         }
       } catch (e) {
@@ -273,7 +334,7 @@ const Scanner: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const resetScan = () => {
+  const handleReset = () => {
       setImage(null); 
       setResult(null); 
       setShowSensoryForm(false);
@@ -481,7 +542,7 @@ const Scanner: React.FC = () => {
 
                     {!loading && (
                         <button 
-                        onClick={resetScan}
+                        onClick={handleReset}
                         className="absolute top-4 right-4 bg-white/80 backdrop-blur hover:bg-white text-slate-800 p-2.5 rounded-full shadow-lg transition-all z-40 group"
                         >
                         <XCircle className="w-6 h-6 text-rose-500 group-hover:scale-110 transition-transform" />
@@ -634,48 +695,60 @@ const Scanner: React.FC = () => {
                             </div>
                         </div>
                     )}
-
-                    {/* Actions */}
+                    
+                    {/* --- NEW ACTION BUTTONS ROW --- */}
+                    {!showSensoryForm && !isDevMeatType && (
+                        <div className="grid grid-cols-2 gap-3 mt-4">
+                            {/* SAVE TO STORAGE/API BUTTON */}
+                            <button
+                                onClick={handleSaveToStorage}
+                                disabled={savingToAPI}
+                                className={`
+                                    w-full py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 
+                                    ${savingToAPI 
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                                        : 'bg-rose-500 text-white shadow-lg shadow-rose-200 hover:bg-rose-600'}
+                                `}
+                            >
+                                {savingToAPI ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        Đang lưu...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="w-5 h-5" /> Lưu vào Kho
+                                    </>
+                                )}
+                            </button>
+                            
+                            {/* DICTIONARY/RESET BUTTONS */}
+                             <button
+                                onClick={handleReset}
+                                className="w-full py-3 rounded-2xl bg-white border border-slate-200 text-slate-700 font-bold shadow-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <RefreshCw className="w-5 h-5" /> Quét mới
+                            </button>
+                        </div>
+                    )}
+                    
+                    {/* Link to Dictionary (Remains) */}
                     <div className="grid grid-cols-2 gap-3">
                         <Link 
-                                to={`/dictionary?type=${encodeURIComponent(result.meatType)}&level=${result.freshnessLevel}`}
-                                className="col-span-2"
-                            >
-                                <div className="bg-white border border-rose-100 rounded-2xl p-4 flex items-center justify-between text-slate-700 shadow-sm hover:bg-rose-50 transition-colors">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-rose-100 rounded-lg text-rose-500">
-                                            <BookOpen className="w-5 h-5" />
-                                        </div>
-                                        <div className="font-bold text-sm">So sánh với Từ điển</div>
-                                    </div>
-                                    <ChevronRight className="w-5 h-5 text-slate-400" />
-                                </div>
-                        </Link>
-                    </div>
-                    
-                    {/* Storage Notification Toast */}
-                    {!isDevMeatType && (
-                        <Link to="/account" className="block group">
-                            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 flex items-center justify-between group-hover:bg-amber-100 transition-colors shadow-sm cursor-pointer">
+                            to={`/dictionary?type=${encodeURIComponent(result.meatType)}&level=${result.freshnessLevel}`}
+                            className="col-span-2"
+                        >
+                            <div className="bg-white border border-rose-100 rounded-2xl p-4 flex items-center justify-between text-slate-700 shadow-sm hover:bg-rose-50 transition-colors">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-amber-100 rounded-lg group-hover:bg-white/50 transition-colors">
-                                        <Zap className="w-5 h-5 text-amber-600" />
+                                    <div className="p-2 bg-rose-100 rounded-lg text-rose-500">
+                                        <BookOpen className="w-5 h-5" />
                                     </div>
-                                    <div>
-                                        <p className="text-xs font-bold text-amber-600 uppercase tracking-wide flex items-center gap-1">
-                                            {isRefining || showSensoryForm ? 'Đang cập nhật kho...' : 'Đã lưu vào kho'}
-                                        </p>
-                                        <p className="text-sm text-amber-800 font-medium">
-                                            Mặc định: Ngăn mát ({result.freshnessLevel >= 4 ? 'Hết hạn' : `${4 - result.freshnessLevel} ngày`})
-                                        </p>
-                                    </div>
+                                    <div className="font-bold text-sm">So sánh với Từ điển</div>
                                 </div>
-                                <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 group-hover:scale-110 transition-all">
-                                    <ChevronRight className="w-4 h-4 text-amber-600" />
-                                </div>
+                                <ChevronRight className="w-5 h-5 text-slate-400" />
                             </div>
                         </Link>
-                    )}
+                    </div>
 
                     {/* Details Card */}
                     <div className="bg-white rounded-3xl p-6 border border-rose-100 shadow-sm">
