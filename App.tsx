@@ -1,10 +1,12 @@
 import React from 'react';
 import Layout from './components/Layout';
 import AppRoutes from './src/routes/AppRoutes';
-import { AuthProvider } from './src/context/AuthContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import LoadingScreen from './components/LoadingComponent';
 
 
 function App() {
+
   return (
     <AuthProvider>
         <AppRoutes />

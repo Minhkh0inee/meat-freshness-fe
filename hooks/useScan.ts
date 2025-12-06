@@ -24,6 +24,23 @@ export const useScan = () => {
     return new File([byteArray], filename, { type: 'image/jpeg' });
   };
 
+  const markScanAsCooked = async (id: string): Promise<ScanResponse | null> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updatedScan = await scanAPI.markAsCooked(id);
+      return updatedScan;
+    } catch (err: any) {
+      const errorMessage = handleAuthError(err);
+      setError(errorMessage);
+      console.error('Mark as cooked error:', err);
+      throw new Error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const saveScan = async (
     result: AnalysisResult,
     imageBase64: string,
@@ -32,7 +49,7 @@ export const useScan = () => {
       environment: StorageEnvironment;
       container: ContainerType;
     }
-  ): Promise<ScanResponse | null> => {
+  ): Promise<any> => {
     setLoading(true);
     setError(null);
 
@@ -107,5 +124,6 @@ export const useScan = () => {
     getScans,
     getUserScans,
     updateScanStatus,
+    markScanAsCooked
   };
 };

@@ -37,7 +37,7 @@ const Account: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, signOut } = useAuth();
   const { user, subscription, loading: profileLoading, error: profileError } = useProfile();
-  const { getUserScans, updateScanStatus, loading: scanLoading, error: scanError } = useScan();
+  const { getUserScans, updateScanStatus, loading: scanLoading, error: scanError, markScanAsCooked } = useScan();
   console.log(getUserScans)
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<'storage' | 'saved'>('storage');
@@ -45,6 +45,8 @@ const Account: React.FC = () => {
   const [savedPosts, setSavedPosts] = useState<BlogPost[]>([]);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [showCookedModal, setShowCookedModal] = useState(false);
+  const [scanToCook, setScanToCook] = useState<string | null>(null);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -135,6 +137,37 @@ const Account: React.FC = () => {
       loadStorageData();
     } else {
       loadSavedPosts();
+    }
+  };
+
+  const handleMarkCookedWithConfirm = (id: string) => {
+    setScanToCook(id);
+    setShowCookedModal(true);
+  };
+
+  const confirmMarkAsCooked = async () => {
+    if (!scanToCook) return;
+
+    try {
+      const updatedScan = await markScanAsCooked(scanToCook);
+      
+      if (updatedScan) {
+          // 2. Cập nhật local state optimistically
+          const updatedHistory = result.map(item => 
+            item._id === scanToCook ? { ...item, isCooked: true } : item
+          );
+          // Bạn cần cập nhật cả 'result' state
+          setResult(updatedHistory); 
+      }
+    } catch (error) {
+      console.error('Error marking as cooked:', error);
+      alert('Có lỗi khi cập nhật trạng thái "Đã nấu". Vui lòng thử lại.');
+      // Reload data to revert optimistic update
+      loadStorageData();
+    } finally {
+      // Đóng modal và reset state
+      setShowCookedModal(false);
+      setScanToCook(null);
     }
   };
 
@@ -648,11 +681,19 @@ const Account: React.FC = () => {
             const currentEnv = item.storageEnvironment || 'fridge';
             const currentContainer = item.containerType || 'bag';
             const isSpoiled = item.freshnessLevel >= 4;
-            const isEditing = editingItemId === item.id;
-
+            const isEditing = editingItemId === item._id;
+            const isCooked = item.isCooked
             return (
-              <div key={item.id} className={`bg-white p-4 rounded-2xl border ${status.border} shadow-sm gap-4 transition-all hover:shadow-md flex flex-col relative`}>
+              <div key={item._id} className={`bg-white p-4 rounded-2xl border ${status.border} shadow-sm gap-4 transition-all hover:shadow-md flex flex-col relative`}>
                 
+                {isCooked && (
+                  <div className="absolute inset-0 z-10 bg-emerald-500/70 backdrop-blur-[1px] rounded-2xl flex items-center justify-center">
+                    <div className="bg-white p-3 px-4 rounded-full shadow-lg flex items-center gap-2">
+                        <Utensils className="w-5 h-5 text-emerald-600" />
+                        <span className="text-base font-black text-emerald-700 uppercase">ĐÃ NẤU</span>
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-4">
                   <div className="w-20 h-20 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 relative">
                     <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.meatType} />
@@ -763,7 +804,7 @@ const Account: React.FC = () => {
                    <div className="flex gap-2 pt-2 border-t border-dashed border-slate-100">
                       {/* Hide "Cooked" if Meat is Spoiled (Level 4-5) */}
                       {!isSpoiled && (
-                          <button onClick={() => updateStatus(item.id, 'cooked')} className="flex-1 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1">
+                          <button onClick={() => markScanAsCooked(item._id)} className="flex-1 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-bold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-1">
                               <Utensils className="w-3 h-3" /> Đã nấu
                           </button>
                       )}

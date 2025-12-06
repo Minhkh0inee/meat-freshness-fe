@@ -43,9 +43,6 @@ api.interceptors.response.use(
   (error) => {
     // Xử lý lỗi 401 - token hết hạn hoặc không hợp lệ
     if (error.response?.status === 401) {
-      // Clear localStorage và chuyển về trang đăng nhập
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('user');
       window.location.href = '/signin';
     }
     

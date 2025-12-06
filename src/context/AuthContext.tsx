@@ -67,20 +67,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuthStatus();
   }, []);
 
-  const checkAuthStatus = async () => {
+const checkAuthStatus = async () => {
     try {
       const token = localStorage.getItem('authToken');
+      const userJson = localStorage.getItem('user'); // <-- LẤY USER OBJECT ĐÃ LƯU
       
-      if (token) {
-        const user = await authAPI.getCurrentUser();
-        dispatch({ type: 'SET_USER', payload: user });
+      if (token && userJson) {
+        let user: User | null = null;
+        try {
+            user = JSON.parse(userJson) as User;
+        } catch(e) {
+            console.error("Failed to parse user data:", e);
+            // Nếu parse lỗi, coi như không có user
+        }
+
+        if (user && user.id) { // Kiểm tra user object hợp lệ
+            // KHÔI PHỤC NGAY LẬP TỨC
+            dispatch({ type: 'SET_USER', payload: user });
+            
+            // TÙY CHỌN: Gọi API để làm mới token/xác thực lại (Refresh/Validate Token)
+            // Ví dụ: authAPI.validateToken().catch(() => signOut());
+            
+        } else {
+            // Token có, nhưng user data bị hỏng
+            throw new Error("Invalid user data in local storage.");
+        }
+
       } else {
+        // Không có Token hoặc User data, kết thúc quá trình loading
         dispatch({ type: 'SET_LOADING', payload: false });
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('user');
-      localStorage.removeItem('authToken');
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };

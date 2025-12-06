@@ -49,7 +49,7 @@ export interface ScanResponse {
 
 export const scanAPI = {
   // Tạo scan mới với file upload
-  createScan: async (data: CreateScanRequest, imageFile: File): Promise<ScanResponse> => {
+  createScan: async (data: CreateScanRequest, imageFile: File): Promise<any> => {
     const formData = new FormData();
     
     // Add the image file
@@ -71,7 +71,7 @@ export const scanAPI = {
         'Content-Type': 'multipart/form-data',
       },
     });
-    return response.data;
+    return response;
   },
 
   // Lấy danh sách scan của user
@@ -109,6 +109,13 @@ export const scanAPI = {
   // Xóa scan
   deleteScan: async (id: string): Promise<void> => {
     await api.delete(`/scans/${id}`);
+  },
+
+  markAsCooked: async (id: string): Promise<ScanResponse> => {
+    const response = await api.patch(`/scans/${id}/cooked`, { 
+        isCooked: true,
+    });
+    return response.data;
   },
 };
 

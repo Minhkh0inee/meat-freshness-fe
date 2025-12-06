@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Check, Crown, Sparkles, X, Zap, ShieldCheck, Smartphone, Brain } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -56,7 +55,7 @@ const Premium: React.FC = () => {
         {/* Plans Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10 px-4 md:px-10">
             
-            {/* Monthly Plan */}
+            {/* Monthly Plan - Đã thêm gạch ngang */}
             <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2.5rem] p-8 hover:border-white/20 transition-all group relative overflow-hidden">
                 <div className="flex justify-between items-start mb-6">
                     <div>
@@ -67,8 +66,11 @@ const Premium: React.FC = () => {
                         <Zap className="w-6 h-6" />
                     </div>
                 </div>
-                <div className="mb-8">
-                    <span className="text-4xl font-black text-white">49.000đ</span>
+                <div className="mb-8 flex items-end gap-3">
+                    {/* Giá gốc gạch ngang */}
+                    <span className="text-xl font-medium text-slate-500 line-through">49.000đ</span>
+                    {/* Giá chính thức */}
+                    <span className="text-4xl font-black text-white">0.000đ</span>
                     <span className="text-slate-500">/tháng</span>
                 </div>
                 <ul className="space-y-4 mb-8">
@@ -96,7 +98,6 @@ const Premium: React.FC = () => {
                 </button>
             </div>
 
-            {/* Yearly Plan (Featured) */}
             <div className="bg-gradient-to-b from-amber-500/20 to-slate-900/80 backdrop-blur-xl border border-amber-500/50 rounded-[2.5rem] p-8 relative overflow-hidden shadow-2xl shadow-amber-500/10 transform hover:-translate-y-2 transition-transform duration-300">
                 <div className="absolute top-0 right-0 bg-amber-500 text-amber-900 text-xs font-bold px-4 py-1 rounded-bl-2xl z-10">
                     TIẾT KIỆM 15%
@@ -111,8 +112,10 @@ const Premium: React.FC = () => {
                         <Crown className="w-6 h-6 fill-amber-900" />
                     </div>
                 </div>
-                <div className="mb-8">
-                    <span className="text-5xl font-black text-white">499.000đ</span>
+                <div className="mb-8 flex items-end gap-3">
+                    <span className="text-xl font-medium text-amber-200/50 line-through">499.000đ</span>
+                    {/* Giá chính thức */}
+                    <span className="text-5xl font-black text-white">0.000đ</span>
                     <span className="text-amber-200/60">/năm</span>
                 </div>
                 <ul className="space-y-4 mb-8">

@@ -12,8 +12,15 @@ import AuthLayout from "@/components/AuthLayout";
 import { SignIn } from "../page/auth/SignIn";
 import { SignUp } from "../page/auth/SignUp";
 import Layout from "@/components/Layout";
+import { useAuth } from "../context/AuthContext";
+import LoadingScreen from "@/components/LoadingComponent";
 
 function AppRoutes() {
+    const { isLoading } = useAuth();
+  
+    if (isLoading) {
+          return <LoadingScreen />; // Hiển thị Loader
+      }
   return (
     <Routes>
       <Route element={<Layout/>}>

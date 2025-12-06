@@ -235,15 +235,13 @@ const Scanner: React.FC = () => {
             const history = existingHistory ? JSON.parse(existingHistory) : [];
             const filteredHistory = currentScanId ? history.filter((item: any) => item.id !== currentScanId) : history;
             const updatedHistory = [historyItem, ...filteredHistory];
-            localStorage.setItem('meatHistory', JSON.stringify(updatedHistory));
 
             if (isAuthenticated) {
-                await saveScan(result, image, sensoryData, storageConfig);
-            } else {
-                alert('Đã lưu offline. Đăng nhập để đồng bộ.');
+                const res = await saveScan(result, image, sensoryData, storageConfig);
+                if(res.status === 201 || res.status === 200){
+                    navigate("/account")
+                }
             }
-
-            alert('Đã lưu vào kho thành công!');
             handleReset();
         } catch (error) {
             console.error('Error saving scan:', error);
