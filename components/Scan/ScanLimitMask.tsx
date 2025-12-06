@@ -17,7 +17,7 @@ const ScanLimitMask: React.FC<ScanLimitMaskProps> = ({ limit, navigate }) => {
                     <br/>Vui lòng <span className='font-bold'>Đăng nhập</span> để sử dụng không giới hạn!
                 </p>
                 <button
-                    onClick={() => navigate('/login')} // Thay bằng '/login' nếu path là login
+                    onClick={() => navigate('/signin')} // Thay bằng '/login' nếu path là login
                     className="cursor-pointer w-full py-3 rounded-xl bg-rose-500 text-white font-bold shadow-lg hover:bg-rose-600 transition-colors"
                 >
                     Đăng nhập ngay

@@ -51,7 +51,7 @@ const Header = ({isLandingPage}) => {
                         Đăng nhập
                      </Link>
                      <Link 
-                       to="/signup" 
+                       to="/scan" 
                        className="px-5 py-2 bg-rose-500 text-white font-bold rounded-full text-sm shadow-lg shadow-rose-200 hover:bg-rose-600 hover:scale-105 transition-all duration-300"
                      >
                         Bắt đầu ngay

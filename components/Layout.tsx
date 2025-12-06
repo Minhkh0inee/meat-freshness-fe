@@ -1,7 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ScanLine, BookOpen, Sparkles, Home, ChefHat, Clock, Bot, User } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import Header from './Header/Header';
 import Footer from './Footer/Footer';
 import { Outlet } from "react-router-dom";
