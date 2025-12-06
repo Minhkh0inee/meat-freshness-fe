@@ -1,7 +1,7 @@
 
 import { useAuth } from '@/src/context/AuthContext';
 import { BookOpen, Bot, ChefHat, ScanLine, Sparkles, User } from 'lucide-react';
-import React from 'react'
+import logoImg from '../../public/logo.png'
 import { Link } from 'react-router-dom';
 
 
@@ -23,7 +23,7 @@ const Header = ({isLandingPage}) => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3 group">
               <div className="w-10 h-10 bg-linear-to-br from-rose-500 to-pink-600 rounded-2xl flex items-center justify-center shadow-lg shadow-rose-200 group-hover:scale-105 transition-transform duration-300 ring-2 ring-white">
-                <ChefHat className="w-6 h-6 text-white" />
+                <img src={logoImg} alt="" className='object-cover w-full h-full rounded-2xl'/>
               </div>
               <div className="flex flex-col">
                 <h1 className="font-black text-lg text-slate-800 leading-none tracking-tight font-serif">Thịt Tươi Rói</h1>

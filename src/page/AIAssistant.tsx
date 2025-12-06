@@ -5,12 +5,14 @@ import { ChefHat, ShoppingBag, PartyPopper, Send, Lock, Crown, Sparkles, Plus, M
 import { Chat, Content } from "@google/genai";
 import { AIPersona, ChatMessage, ChatSession } from '@/types';
 import { createChatSession } from '../services/geminiService';
+import { useProfile } from '@/hooks/useProfile';
 
 const AIAssistant: React.FC = () => {
   const navigate = useNavigate();
   
   // State
   const [isPremium, setIsPremium] = useState(false);
+  const {user} = useProfile()
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [selectedPersona, setSelectedPersona] = useState<AIPersona | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -262,9 +264,9 @@ const AIAssistant: React.FC = () => {
                         persona={AIPersona.CHEF}
                         name="Đầu Bếp Gordon"
                         desc="Thực đơn & Kỹ thuật nấu"
-                        icon={<ChefHat className="w-8 h-8" />}
+                        icon={<ChefHat className="w-8 h-8 text-red-500" />}
                         color="slate"
-                        isPremium={isPremium}
+                        isPremium={user?.isPro}
                         onClick={() => startNewChat(AIPersona.CHEF)}
                     />
                     <PersonaCard 
@@ -273,7 +275,7 @@ const AIAssistant: React.FC = () => {
                         desc="Đi chợ & Tìm địa điểm"
                         icon={<ShoppingBag className="w-8 h-8" />}
                         color="rose"
-                        isPremium={isPremium}
+                        isPremium={user?.isPro}
                         onClick={() => startNewChat(AIPersona.HOUSEWIFE)}
                     />
                     <PersonaCard 
@@ -282,7 +284,7 @@ const AIAssistant: React.FC = () => {
                         desc="Review & Trò chuyện"
                         icon={<PartyPopper className="w-8 h-8" />}
                         color="amber"
-                        isPremium={isPremium}
+                        isPremium={user?.isPro}
                         onClick={() => startNewChat(AIPersona.FRIEND)}
                     />
                 </div>
