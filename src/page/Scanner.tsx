@@ -339,7 +339,7 @@ const Scanner: React.FC = () => {
                                         <div className="absolute inset-0 flex flex-col items-center justify-center z-30 px-6">
                                             <div className="bg-white/95 backdrop-blur-xl p-6 rounded-3xl shadow-2xl w-full max-w-[280px] flex flex-col items-center border border-white animate-float">
                                                 <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center mb-4 shadow-inner">
-                                                    {React.createElement(require('lucide-react')[currentStage.icon] || Camera, { className: `w-6 h-6 ${currentStage.icon.includes('rose') ? 'text-rose-500' : 'text-slate-500'} animate-pulse` })}
+                                                    <Camera/>
                                                 </div>
                                                 <h4 className="text-slate-800 font-bold text-center mb-1">{currentStage.text}</h4>
                                                 <p className="text-slate-400 text-xs font-medium mb-4">{progress}% hoàn thành</p>
