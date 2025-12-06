@@ -1,4 +1,4 @@
-import { User } from '@/types';
+import { SubscriptionUpdate, User } from '@/types';
 import api from './api';
 import { AuthResponse, SignInRequest, SignUpRequest } from '@/components/Auth/interface';
 
@@ -19,6 +19,12 @@ export const authAPI = {
   signOut: async (): Promise<void> => {
     await api.post('/auth/signout');
   },
+
+  updateSubscription: async (updates: SubscriptionUpdate): Promise<User> => {
+        // Gọi endpoint đã định nghĩa trong UserController
+        const response = await api.patch('/user/subscription', updates);
+        return response.data;
+    },
 
   // Lấy thông tin user hiện tại
   getCurrentUser: async (): Promise<User> => {

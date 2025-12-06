@@ -67,38 +67,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuthStatus();
   }, []);
 
-const checkAuthStatus = async () => {
+  const checkAuthStatus = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      const userJson = localStorage.getItem('user'); // <-- LẤY USER OBJECT ĐÃ LƯU
+      const userJson = localStorage.getItem('user');
       
       if (token && userJson) {
         let user: User | null = null;
+        
         try {
-            user = JSON.parse(userJson) as User;
+          user = JSON.parse(userJson) as User;
         } catch(e) {
-            console.error("Failed to parse user data:", e);
-            // Nếu parse lỗi, coi như không có user
+          console.error("Failed to parse user data:", e);
+          // Clear corrupted data
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          dispatch({ type: 'SET_LOADING', payload: false });
+          return;
         }
 
-        if (user && user.id) { // Kiểm tra user object hợp lệ
-            // KHÔI PHỤC NGAY LẬP TỨC
-            dispatch({ type: 'SET_USER', payload: user });
-            
-            // TÙY CHỌN: Gọi API để làm mới token/xác thực lại (Refresh/Validate Token)
-            // Ví dụ: authAPI.validateToken().catch(() => signOut());
-            
+        if (user) {
+          // RESTORE user ngay lập tức
+          dispatch({ type: 'SET_USER', payload: user });
+          
+          // TÙY CHỌN: Validate token với backend
+          try {
+            const freshUser = await authAPI.getCurrentUser();
+            dispatch({ type: 'SET_USER', payload: freshUser });
+            localStorage.setItem('user', JSON.stringify(freshUser));
+          } catch (error: any) {
+            // Nếu là lỗi 401 thì mới xóa localStorage
+            if (error?.response?.status === 401) {
+              console.log("error: ", error)
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('user');
+              dispatch({ type: 'SIGN_OUT' });
+            } else {
+              // Nếu là lỗi khác (mạng, server...), giữ nguyên user đã restore
+              console.warn('Token validation failed, using cached user data');
+              dispatch({ type: 'SET_USER', payload: user });
+            }
+          }
         } else {
-            // Token có, nhưng user data bị hỏng
-            throw new Error("Invalid user data in local storage.");
+          throw new Error("Invalid user data in local storage.");
         }
-
       } else {
-        // Không có Token hoặc User data, kết thúc quá trình loading
         dispatch({ type: 'SET_LOADING', payload: false });
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      // Clear invalid data
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
@@ -135,7 +155,7 @@ const checkAuthStatus = async () => {
 
   const signOut = async () => {
     try {
-      // await authAPI.signOut();
+      await authAPI.signOut();
     } catch (error) {
       console.error('Sign out API failed:', error);
     } finally {

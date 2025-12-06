@@ -37,8 +37,8 @@ const Account: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, signOut } = useAuth();
   const { user, subscription, loading: profileLoading, error: profileError } = useProfile();
-  const { getUserScans, updateScanStatus, loading: scanLoading, error: scanError, markScanAsCooked } = useScan();
-  console.log(getUserScans)
+  const { getUserScans, updateScanStatus, loading: scanLoading, error: scanError, markScanAsCooked, deleteScan, deleteAllUserScans } = useScan();
+  console.log(subscription)
   // --- STATE ---
   const [activeTab, setActiveTab] = useState<'storage' | 'saved'>('storage');
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -47,7 +47,7 @@ const Account: React.FC = () => {
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [showCookedModal, setShowCookedModal] = useState(false);
   const [scanToCook, setScanToCook] = useState<string | null>(null);
-  
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -104,8 +104,6 @@ const Account: React.FC = () => {
       setResult(result.scans)
       setTotalPages(result.totalPages);
       setTotalScans(result.total);
-      
-      console.log(`✅ Loaded ${result.scans.length} scans from API`);
       
     } catch (error) {
       console.error('❌ Failed to load from API:', error);
@@ -175,25 +173,6 @@ const Account: React.FC = () => {
     loadData();
   }, [activeTab, currentPage, isAuthenticated]);
 
-  // --- ACTIONS: STORAGE ---
-  const updateStatus = async (id: string, status: ActionStatus) => {
-    try {
-      // Update via API
-      await updateScanStatus(id, { actionStatus: status });
-      
-      // Update local state optimistically
-      const updatedHistory = history.map(item => 
-        item.id === id ? { ...item, actionStatus: status } : item
-      );
-      setHistory(updatedHistory);
-      
-    } catch (error) {
-      console.error('Error updating status:', error);
-      alert('Có lỗi khi cập nhật. Vui lòng thử lại.');
-      // Reload data to revert optimistic update
-      loadStorageData();
-    }
-  };
 
   const updateStorageConfig = async (id: string, updates: { env?: StorageEnvironment, container?: ContainerType }) => {
     try {
@@ -234,17 +213,18 @@ const Account: React.FC = () => {
     }
   };
 
-  const deleteItem = async (id: string) => {
-    if (!window.confirm("Xóa mục này khỏi lịch sử?")) return;
+const deleteItem = async (id: string) => {
+    if (!window.confirm("Xóa mục này khỏi lịch sử? Hành động này không thể hoàn tác.")) return;
 
     try {
-      // Delete via API
+      // 1. Delete via API (Dùng hàm mới từ useScan)
+      await deleteScan(id); 
       
-      // Update local state optimistically
-      const updatedHistory = history.filter(item => item.id !== id);
-      setHistory(updatedHistory);
+      // 2. Update local state optimistically
+      const updatedResults = result.filter((item: any) => item._id !== id);
+      setResult(updatedResults);
       
-      // Update total count
+      // 3. Update total count
       setTotalScans(prev => prev - 1);
       
     } catch (error) {
@@ -254,21 +234,17 @@ const Account: React.FC = () => {
       loadStorageData();
     }
   };
+  
 
   const clearAllScans = async () => {
-    if (!window.confirm("Bạn có chắc muốn xóa toàn bộ lịch sử scan?")) return;
+    if (!window.confirm("Bạn có chắc muốn xóa TOÀN BỘ lịch sử scan? Hành động này không thể hoàn tác.")) return;
 
     try {
-
-      
-      // Clear local state
-      setHistory([]);
+      await deleteAllUserScans();
+      setResult([]);
       setTotalScans(0);
       setTotalPages(1);
       setCurrentPage(1);
-      
-      alert('Đã xóa toàn bộ lịch sử scan thành công!');
-      
     } catch (error) {
       console.error('Error clearing all scans:', error);
       alert('Có lỗi khi xóa. Vui lòng thử lại.');
@@ -300,32 +276,8 @@ const Account: React.FC = () => {
     }
   };
 
-  // Handle avatar upload
-  // const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-  //   const file = event.target.files?.[0];
-  //   if (!file) return;
+ 
 
-  //   // Validate file size (max 5MB)
-  //   if (file.size > 5 * 1024 * 1024) {
-  //     alert('File quá lớn. Vui lòng chọn ảnh nhỏ hơn 5MB');
-  //     return;
-  //   }
-
-  //   // Validate file type
-  //   if (!file.type.startsWith('image/')) {
-  //     alert('Vui lòng chọn file ảnh');
-  //     return;
-  //   }
-
-  //   try {
-  //     await uploadAvatar(file);
-  //     alert('Cập nhật ảnh đại diện thành công!');
-  //   } catch (error) {
-  //     alert('Lỗi upload ảnh. Vui lòng thử lại.');
-  //   }
-  // };
-
-  // --- HELPER: TIME ---
   const getHoursLeft = (deadline: number) => {
     const now = Date.now();
     const diff = deadline - now;
@@ -417,7 +369,6 @@ const Account: React.FC = () => {
       
       {/* --- 1. PROFILE CARD --- */}
       <div className="bg-white rounded-3xl p-6 shadow-xl shadow-rose-100/50 border border-rose-50 relative overflow-hidden">
-         <div className="absolute top-0 right-0 w-32 h-32 bg-rose-100 rounded-bl-[4rem] -mr-4 -mt-4 opacity-50"></div>
          
          {profileLoading && (
            <div className="absolute inset-0 bg-white/80 rounded-3xl flex items-center justify-center z-20">
@@ -450,10 +401,6 @@ const Account: React.FC = () => {
                   /> */}
                 </label>
                 
-                {/* Level Badge */}
-                <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center text-xs font-bold border-2 border-white">
-                    {displayUser.level || 1}
-                </div>
             </div>
             
             <div className="flex-1">
@@ -469,32 +416,29 @@ const Account: React.FC = () => {
                     </button>
                     
                     {/* Membership Badge */}
-                    {subscription?.isPremium ? (
-                        <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 shadow-sm ${
-                            subscription.plan === 'yearly' 
-                            ? 'bg-gradient-to-r from-amber-300 to-yellow-500 text-white' 
-                            : 'bg-gradient-to-r from-rose-400 to-pink-500 text-white'
-                        }`}>
-                            <Crown className="w-3 h-3 fill-current" />
-                            {subscription.plan === 'yearly' ? 'VIP' : 'Premium'}
-                        </div>
-                    ) : (
-                        <div className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wide">
-                            Free
-                        </div>
-                    )}
+{user?.subscriptionType !== 'free' ? (
+    <div className={`
+        px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide 
+        flex items-center gap-1 shadow-sm transition-all
+        ${
+            user?.subscriptionType === 'annual' 
+            ? 'bg-gradient-to-r from-amber-300 to-yellow-500 text-amber-900 shadow-amber-500/20' 
+            : 'bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-rose-500/20'
+        }
+    `}>
+        <Crown className="w-3 h-3 fill-current" />
+        {/* Hiển thị tiêu đề */}
+        {user?.subscriptionType === 'annual' ? 'VIP YEARLY' : 'PREMIUM MONTHLY'}
+    </div>
+) : (
+    <div className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-bold uppercase tracking-wide">
+        FREE
+    </div>
+)}
                 </div>
                 
                 <p className="text-sm text-slate-500 font-medium mb-2">{displayUser.title || 'Thành viên mới'}</p>
                 
-                {/* XP Bar */}
-                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 mb-1">
-                    <span>XP</span>
-                    <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-50">
-                        <div className="h-full bg-rose-500 rounded-full" style={{ width: `${displayUser.xp || 0}%` }}></div>
-                    </div>
-                    <span>{displayUser.xp || 0}/100</span>
-                </div>
                 
                 {/* Error Message */}
                 {profileError && (
@@ -502,22 +446,6 @@ const Account: React.FC = () => {
                 )}
             </div>
 
-            {/* Settings & Sign Out Buttons */}
-            <div className="flex flex-col gap-2">
-                <button 
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                  title="Cài đặt"
-                >
-                    <Settings className="w-4 h-4" />
-                </button>
-                <button 
-                    onClick={handleSignOut}
-                    className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
-                    title="Đăng xuất"
-                >
-                    <LogOut className="w-4 h-4" />
-                </button>
-            </div>
          </div>
 
          {/* Profile Edit Form */}
@@ -808,7 +736,7 @@ const Account: React.FC = () => {
                               <Utensils className="w-3 h-3" /> Đã nấu
                           </button>
                       )}
-                      <button onClick={() => updateStatus(item.id, 'discarded')} className="flex-1 py-1.5 rounded-lg bg-slate-50 text-slate-500 text-xs font-bold hover:bg-slate-100 transition-colors flex items-center justify-center gap-1">
+                      <button onClick={() => deleteItem(item._id)} className="flex-1 py-1.5 rounded-lg bg-slate-50 text-slate-500 text-xs font-bold hover:bg-slate-100 transition-colors flex items-center justify-center gap-1">
                           <Trash className="w-3 h-3" /> Vứt bỏ
                       </button>
                    </div>

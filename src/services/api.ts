@@ -18,10 +18,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Log request trong development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('API Request:', config.method?.toUpperCase(), config.url);
-    }
     
     return config;
   },
@@ -34,17 +30,9 @@ api.interceptors.request.use(
 // Response interceptor - xử lý response
 api.interceptors.response.use(
   (response) => {
-    // Log response trong development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('API Response:', response.status, response.config.url);
-    }
     return response;
   },
   (error) => {
-    // Xử lý lỗi 401 - token hết hạn hoặc không hợp lệ
-    if (error.response?.status === 401) {
-      window.location.href = '/signin';
-    }
     
     console.error('Response Error:', error.response?.data || error.message);
     return Promise.reject(error);

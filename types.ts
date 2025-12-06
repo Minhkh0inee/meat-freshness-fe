@@ -88,7 +88,7 @@ export interface ChatSession {
 }
 
 export interface User {
-  id: string;
+  _id: string;
   email: string;
   name: string;
   avatar?: string;
@@ -96,6 +96,8 @@ export interface User {
   xp?: number;
   title?: string;
   createdAt?: string;
+  isPro?: boolean;
+  subscriptionType?:string
   updatedAt?: string;
 }
 
@@ -105,4 +107,9 @@ export interface UserSubscription {
   plan: 'free' | 'monthly' | 'yearly';
   expiresAt?: string;
   features?: string[];
+}
+
+export interface SubscriptionUpdate {
+    isPro?: boolean;
+    subscriptionType?: 'free' | 'monthly' | 'annual';
 }

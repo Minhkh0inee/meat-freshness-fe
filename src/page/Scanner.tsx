@@ -10,6 +10,7 @@ import ScanResults from '@/components/Scan/ScanResult';
 import PreScanGuide from '@/components/Scan/PreScanGuide';
 import ScanLimitMask from '@/components/Scan/ScanLimitMask';
 import { calculateStorageDeadline, getPredictedSensoryValues, getScanStage } from '../utils/scan.util';
+import { useProfile } from '@/hooks/useProfile';
 
 // Constants
 const SCAN_LIMIT = 2;
@@ -41,8 +42,8 @@ const saveToHistory = (data: AnalysisResult, base64: string, id?: string): strin
 const Scanner: React.FC = () => {
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
+    const {user} = useProfile()
     const { saveScan, loading: savingToAPI } = useScan();
-    
     const [guestScanCount, setGuestScanCount] = useState<number>(() => {
         const savedCount = localStorage.getItem(GUEST_SCAN_COUNT_KEY);
         return savedCount ? parseInt(savedCount, 10) : 0;
@@ -57,11 +58,7 @@ const Scanner: React.FC = () => {
     const [showSensoryForm, setShowSensoryForm] = useState(false);
     const [sensoryData, setSensoryData] = useState<SensoryData>({ smell: 0, texture: 0, moisture: 0, drip: 0 });
     const [storageConfig, setStorageConfig] = useState<{ environment: StorageEnvironment; container: ContainerType }>({ environment: 'fridge', container: 'bag' });
-    const [isProMode, setIsProMode] = useState(() => {
-        const savedMode = localStorage.getItem('scanProMode');
-        const isPremium = localStorage.getItem('isPremium') === 'true';
-        return isPremium && savedMode === 'true';
-    });
+    const isProMode =Boolean(localStorage.getItem('scanProMode') )
     const [currentScanId, setCurrentScanId] = useState<string | null>(null);
     
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -93,13 +90,12 @@ const Scanner: React.FC = () => {
     }, [showSensoryForm]);
 
     const handleToggleProMode = () => {
-        const isPremium = localStorage.getItem('isPremium') === 'true';
-        if (!isProMode && !isPremium) {
+        if (!user || !user.isPro) {
             navigate('/premium');
             return;
         }
-        const newMode = !isProMode;
-        setIsProMode(newMode);
+
+        const newMode = !isProMode; 
         localStorage.setItem('scanProMode', String(newMode));
     };
 
@@ -287,7 +283,7 @@ const Scanner: React.FC = () => {
             {/* Header */}
             <ScannerHeader 
                 imageLoaded={!!image} 
-                isProMode={isProMode} 
+                isProMode={user?.isPro} 
                 onToggleProMode={handleToggleProMode}
                 navigate={navigate}
             />

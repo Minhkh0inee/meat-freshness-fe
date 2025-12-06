@@ -88,6 +88,13 @@ export const scanAPI = {
     return response.data;
   },
 
+  deleteAllUserScans: async (): Promise<{ deletedCount: number }> => {
+    const response = await api.delete('/scans');
+    
+    // The NestJS backend returns the number of deleted documents (deletedCount)
+    return response.data; 
+  },
+
   // Lấy tất cả scans (không phân trang) - để backward compatibility
   getScans: async (): Promise<ScanResponse[]> => {
     const response = await scanAPI.getUserScans(1, 1000); // Get all
@@ -106,7 +113,6 @@ export const scanAPI = {
     return response.data;
   },
 
-  // Xóa scan
   deleteScan: async (id: string): Promise<void> => {
     await api.delete(`/scans/${id}`);
   },

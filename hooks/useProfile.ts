@@ -1,18 +1,26 @@
 import { useState, useEffect } from 'react';
 import { authAPI, handleAuthError } from '../src/services/authService';
-import { User, UserSubscription } from '../types';
+import { SubscriptionUpdate, User, UserSubscription } from '../types';
 import { useAuth } from '@/src/context/AuthContext';
 
 export const useProfile = () => {
-  const { user: authUser, isAuthenticated } = useAuth();
+  const { user: authUser, isAuthenticated, isLoading } = useAuth();
   const [user, setUser] = useState<User | null>(null);
-  const [subscription, setSubscription] = useState<UserSubscription>({
-    isPremium: false,
-    plan: 'free'
+  const [subscription, setSubscription] = useState<any>({
+    isPremium: false
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+        if (isLoading) return; 
+
+        if (isAuthenticated) {
+            loadProfile();
+        } else {
+            setUser(null);
+        }
+    }, [isAuthenticated, isLoading]);
   // Load user profile
   const loadProfile = async () => {
     if (!isAuthenticated) return;
@@ -24,15 +32,9 @@ export const useProfile = () => {
       // Lấy thông tin user từ API
       const userData = await authAPI.getCurrentUser();
       setUser(userData);
-
-      // Load subscription từ localStorage (hoặc từ API nếu có)
-      const isPremium = localStorage.getItem('isPremium') === 'true';
-      const plan = localStorage.getItem('premiumPlan') as 'free' | 'monthly' | 'yearly' || 'free';
       
       setSubscription({
-        isPremium,
-        plan,
-        expiresAt: localStorage.getItem('premiumExpiresAt') || undefined,
+        subscription: userData.subscriptionType
       });
 
     } catch (err) {
@@ -44,6 +46,33 @@ export const useProfile = () => {
       if (authUser) {
         setUser(authUser);
       }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSubscription = async (updates: SubscriptionUpdate): Promise<User> => {
+    // Luôn kiểm tra Auth và Loading trước khi gọi API
+    if (isLoading) throw new Error("Authentication status is still loading. Cannot update subscription.");
+    if (!isAuthenticated) throw new Error("User must be logged in to update subscription.");
+
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const updatedUser = await authAPI.updateSubscription(updates);
+      setUser(updatedUser);
+      setSubscription({
+        subscription: updatedUser.subscriptionType,
+        isPro: updatedUser.subscriptionType !== 'free',
+      });
+      return updatedUser;
+      
+    } catch (err: any) {
+      const errorMessage = handleAuthError(err);
+      setError(errorMessage);
+      console.error('Failed to update subscription:', err);
+      throw new Error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -100,6 +129,7 @@ export const useProfile = () => {
     loading,
     error,
     loadProfile,
+    updateSubscription
     // updateProfile,
     // uploadAvatar,
   };
