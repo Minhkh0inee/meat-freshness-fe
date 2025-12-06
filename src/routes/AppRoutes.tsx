@@ -21,10 +21,10 @@ function AppRoutes() {
         <Route path="/scan" element={<Scanner />} />
         <Route path="/assistant" element={<AIAssistant />} />
         <Route path="/account" element={<Account />} />
+        <Route path="/premium" element={<Premium />} />
         <Route path="/dictionary" element={<MeatDictionary />} />
         <Route path="/blog" element={<Blog />} />
-        <Route path="/history" element={<History />} />
-        <Route path="/premium" element={<Premium />} />
+      
       </Route>
       
       <Route element={<AuthLayout />}>
