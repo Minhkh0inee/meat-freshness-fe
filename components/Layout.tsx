@@ -10,17 +10,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
-
   const isLandingPage = location.pathname === '/';
-  const isPremiumPage = location.pathname === '/premium';
-
-  // Hide navigation on premium page
-  if (isPremiumPage) {
-      return <Outlet/>;
-  }
-
-
-
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
