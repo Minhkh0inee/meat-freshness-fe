@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Microscope, Database, ArrowRight, ShieldCheck, Smartphone, Zap, ChefHat, Beef, Drumstick, BookOpen, Camera, Search, FileText, Thermometer, Snowflake, Clock, ChevronRight, FlaskConical, Activity, Droplets, Wind, Palette, Bot, Sparkles } from 'lucide-react';
 import { MeatType } from '../../types';
-// import { blogPosts } from '../utils/mockData';
+import { blogPosts } from '../data/mockData';
 
 const LandingPage: React.FC = () => {
   const meatPreviews = [
@@ -346,7 +346,7 @@ const LandingPage: React.FC = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* {blogPosts.slice(0, 3).map((post) => (
+                {blogPosts.slice(0, 3).map((post) => (
                     <Link to={`/blog/${post.id}`} key={post.id} className="group flex flex-col bg-white p-4 rounded-[2rem] shadow-sm border border-rose-50 hover:shadow-xl hover:shadow-rose-100/50 transition-all duration-300 h-full">
                         <div className="h-48 rounded-2xl overflow-hidden mb-4 relative">
                             <img src={post.image} alt={post.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
@@ -360,7 +360,7 @@ const LandingPage: React.FC = () => {
                             </div>
                         </div>
                     </Link>
-                ))} */}
+                ))}
             </div>
         </div>
 

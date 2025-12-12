@@ -14,6 +14,7 @@ import { SignUp } from "../page/auth/SignUp";
 import Layout from "@/components/Layout";
 import { useAuth } from "../context/AuthContext";
 import LoadingScreen from "@/components/LoadingComponent";
+import BlogDetail from "@/components/BlogDetail";
 
 function AppRoutes() {
     const { isLoading } = useAuth();
@@ -31,6 +32,8 @@ function AppRoutes() {
         <Route path="/premium" element={<Premium />} />
         <Route path="/dictionary" element={<MeatDictionary />} />
         <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:id" element={<BlogDetail />} />
+
       
       </Route>
       
