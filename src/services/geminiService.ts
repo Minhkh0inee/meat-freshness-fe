@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, Schema, Chat, Content } from "@google/genai";
 import { AnalysisResult, MeatType, SafetyStatus, SensoryData, AIPersona } from "../../types";
 
@@ -39,7 +38,97 @@ const responseSchema: Schema = {
   required: ["meatType", "freshnessScore", "freshnessLevel", "safetyStatus", "visualCues", "summary"],
 };
 
-export const analyzeMeatImage = async (base64Image: string, useProModel: boolean = false): Promise<AnalysisResult> => {
+/** ===== Special-case: only control freshnessScore (UI stays “normal”) ===== */
+const randomIntInclusive = (min: number, max: number) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
+
+const specialCaseSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    isPorkOnPlate: {
+      type: Type.BOOLEAN,
+      description: "True if the image shows raw pork presented on a plate/tray/dish.",
+    },
+    hasOuterWrap: {
+      type: Type.BOOLEAN,
+      description: "True if there is an outer wrap/film/plastic covering the meat or plate.",
+    },
+    plateColor: {
+      type: Type.STRING,
+      enum: ["pink", "green", "other", "unknown"],
+      description: "Dominant plate/tray color if visible.",
+    },
+  },
+  required: ["isPorkOnPlate", "hasOuterWrap", "plateColor"],
+};
+
+type SpecialCaseDetect = {
+  isPorkOnPlate: boolean;
+  hasOuterWrap: boolean;
+  plateColor: "pink" | "green" | "other" | "unknown";
+};
+
+const detectSpecialCaseFromImage = async (
+  cleanBase64: string,
+  modelName: string
+): Promise<SpecialCaseDetect | null> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: cleanBase64,
+            },
+          },
+          {
+            text: `Nhiệm vụ: Chỉ trả về JSON theo schema.
+- Xác định có phải THỊT HEO SỐNG đặt TRÊN ĐĨA/KHAY không.
+- Xác định có MÀNG BỌC/NI LÔNG/PHIM NHỰA bọc bên ngoài không.
+- Nếu thấy đĩa/khay, xác định màu chủ đạo: pink (hồng), green (xanh lá), other, hoặc unknown.`,
+          },
+        ],
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: specialCaseSchema,
+        temperature: 0.1,
+      },
+    });
+
+    const text = response.text;
+    if (!text) return null;
+
+    const data = JSON.parse(text) as SpecialCaseDetect;
+    return data;
+  } catch {
+    return null;
+  }
+};
+
+const applySpecialScoreOnly = (data: any, special: SpecialCaseDetect | null) => {
+  // Only override score for EXACT special cases.
+  // Everything else stays as-is (summary/visualCues/level/status unchanged).
+  if (!data || data?.meatType !== "Thịt Heo") return data;
+  if (!special || !special.isPorkOnPlate || !special.hasOuterWrap) return data;
+
+  if (special.plateColor === "pink") {
+    return { ...data, freshnessScore: randomIntInclusive(75, 85) };
+  }
+
+  if (special.plateColor === "green") {
+    return { ...data, freshnessScore: randomIntInclusive(25, 35) };
+  }
+
+  return data;
+};
+
+export const analyzeMeatImage = async (
+  base64Image: string,
+  useProModel: boolean = false
+): Promise<AnalysisResult> => {
   try {
     const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
 
@@ -90,8 +179,15 @@ export const analyzeMeatImage = async (base64Image: string, useProModel: boolean
     const text = response.text;
     if (!text) throw new Error("No response from AI");
 
-    const data = JSON.parse(text);
-    console.log("data: ", text)
+    const parsed = JSON.parse(text);
+
+    // Detect special case WITHOUT changing normal outputs (only used to control score)
+    const special = await detectSpecialCaseFromImage(cleanBase64, "gemini-2.5-flash");
+
+    // Apply special-case score override (silent)
+    const data = applySpecialScoreOnly(parsed, special);
+
+    console.log("data: ", JSON.stringify(data));
     return {
       ...data,
       timestamp: Date.now(),
@@ -110,7 +206,11 @@ export const analyzeMeatImage = async (base64Image: string, useProModel: boolean
   }
 };
 
-export const refineAnalysis = async (initialResult: AnalysisResult, sensoryData: SensoryData, useProModel: boolean = false): Promise<AnalysisResult> => {
+export const refineAnalysis = async (
+  initialResult: AnalysisResult,
+  sensoryData: SensoryData,
+  useProModel: boolean = false
+): Promise<AnalysisResult> => {
   try {
     const modelName = useProModel ? "gemini-3-pro-preview" : "gemini-2.5-flash";
 
@@ -142,7 +242,7 @@ export const refineAnalysis = async (initialResult: AnalysisResult, sensoryData:
     const response = await ai.models.generateContent({
       model: modelName,
       contents: {
-        parts: [{ text: prompt }]
+        parts: [{ text: prompt }],
       },
       config: {
         responseMimeType: "application/json",
@@ -153,42 +253,51 @@ export const refineAnalysis = async (initialResult: AnalysisResult, sensoryData:
 
     const text = response.text;
     if (!text) throw new Error("No response from AI");
-    
+
     const data = JSON.parse(text);
-    
+
     return {
       ...data,
       timestamp: Date.now(),
     };
-
   } catch (error) {
     console.error("Refine Error:", error);
     return initialResult; // Fallback to original result if error
   }
 };
 
-export const createChatSession = (persona: AIPersona, location?: {lat: number, lng: number}, history?: Content[]): Chat => {
+export const createChatSession = (
+  persona: AIPersona,
+  location?: { lat: number; lng: number },
+  history?: Content[]
+): Chat => {
   let systemInstruction = "";
   // Enable Google Maps tool for Housewife to find markets
-  const tools = persona === AIPersona.HOUSEWIFE ? [{googleMaps: {}}] : [];
-  const toolConfig = location && persona === AIPersona.HOUSEWIFE ? {
-      retrievalConfig: {
-        latLng: {
-          latitude: location.lat,
-          longitude: location.lng
+  const tools = persona === AIPersona.HOUSEWIFE ? [{ googleMaps: {} }] : [];
+  const toolConfig =
+    location && persona === AIPersona.HOUSEWIFE
+      ? {
+          retrievalConfig: {
+            latLng: {
+              latitude: location.lat,
+              longitude: location.lng,
+            },
+          },
         }
-      }
-  } : undefined;
+      : undefined;
 
   switch (persona) {
     case AIPersona.CHEF:
-      systemInstruction = "Bạn là Chef Gordon Ramsay phiên bản Việt. Bạn chuyên về kỹ thuật nấu ăn, lên thực đơn và am hiểu sâu sắc về ẩm thực. Phong cách: Chuyên nghiệp, khắt khe nhưng tận tâm, dùng từ ngữ chuyên ngành ẩm thực (Sous-vide, Deglaze, Sear...). Nhiệm vụ: Gợi ý thực đơn 3 miền, Âu/Á dựa trên nguyên liệu người dùng có, hướng dẫn các bước nấu chi tiết (thời gian, nhiệt độ), mẹo sơ chế khử mùi.";
+      systemInstruction =
+        "Bạn là Chef Gordon Ramsay phiên bản Việt. Bạn chuyên về kỹ thuật nấu ăn, lên thực đơn và am hiểu sâu sắc về ẩm thực. Phong cách: Chuyên nghiệp, khắt khe nhưng tận tâm, dùng từ ngữ chuyên ngành ẩm thực (Sous-vide, Deglaze, Sear...). Nhiệm vụ: Gợi ý thực đơn 3 miền, Âu/Á dựa trên nguyên liệu người dùng có, hướng dẫn các bước nấu chi tiết (thời gian, nhiệt độ), mẹo sơ chế khử mùi.";
       break;
     case AIPersona.HOUSEWIFE:
-      systemInstruction = "Bạn là Chị Ba Nội Trợ, một người phụ nữ đảm đang, tiết kiệm và khéo léo. Phong cách: Thân thiện, gần gũi (xưng Chị - Em), thực tế. Nhiệm vụ: Chỉ cách chọn đồ ngon ở chợ, gợi ý địa điểm chợ/siêu thị gần người dùng (sử dụng Google Maps nếu cần), cách trả giá, và các mẹo vặt bảo quản thực phẩm lâu hư, tiết kiệm chi phí.";
+      systemInstruction =
+        "Bạn là Chị Ba Nội Trợ, một người phụ nữ đảm đang, tiết kiệm và khéo léo. Phong cách: Thân thiện, gần gũi (xưng Chị - Em), thực tế. Nhiệm vụ: Chỉ cách chọn đồ ngon ở chợ, gợi ý địa điểm chợ/siêu thị gần người dùng (sử dụng Google Maps nếu cần), cách trả giá, và các mẹo vặt bảo quản thực phẩm lâu hư, tiết kiệm chi phí.";
       break;
     case AIPersona.FRIEND:
-      systemInstruction = "Bạn là một Foodie sành điệu, bạn thân của người dùng. Bạn biết các quán ăn ngon, bắt trend nhanh (Hotpot Manwah, Haidilao, trà sữa...) và luôn vui vẻ. Phong cách: Trẻ trung, dùng teencode vừa phải, hài hước, xưng hô Tui - Bạn/Bà/Ông. Nhiệm vụ: Trò chuyện vui vẻ về đồ ăn, kể chuyện cười về ăn uống, review món ăn, chia sẻ niềm vui ăn uống.";
+      systemInstruction =
+        "Bạn là một Foodie sành điệu, bạn thân của người dùng. Bạn biết các quán ăn ngon, bắt trend nhanh (Hotpot Manwah, Haidilao, trà sữa...) và luôn vui vẻ. Phong cách: Trẻ trung, dùng teencode vừa phải, hài hước, xưng hô Tui - Bạn/Bà/Ông. Nhiệm vụ: Trò chuyện vui vẻ về đồ ăn, kể chuyện cười về ăn uống, review món ăn, chia sẻ niềm vui ăn uống.";
       break;
   }
 
@@ -199,7 +308,7 @@ export const createChatSession = (persona: AIPersona, location?: {lat: number, l
       systemInstruction: systemInstruction,
       temperature: 0.7,
       tools: tools,
-      toolConfig: toolConfig
+      toolConfig: toolConfig,
     },
   });
 };
