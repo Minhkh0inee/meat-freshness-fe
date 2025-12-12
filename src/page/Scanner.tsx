@@ -13,7 +13,7 @@ import { calculateStorageDeadline, getPredictedSensoryValues, getScanStage } fro
 import { useProfile } from '@/hooks/useProfile';
 
 // Constants
-const SCAN_LIMIT = 2;
+const SCAN_LIMIT = 5;
 const GUEST_SCAN_COUNT_KEY = 'guestScanCount';
 
 const saveToHistory = (data: AnalysisResult, base64: string, id?: string): string => {

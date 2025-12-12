@@ -186,11 +186,7 @@ export const analyzeMeatImage = async (
 ): Promise<AnalysisResult> => {
   try {
     const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
-
-    // Select model based on Pro mode
-    // Basic: gemini-2.5-flash
-    // Advanced/Premium: gemini-3-pro-preview
-    const modelName = useProModel ? "gemini-3-pro-preview" : "gemini-2.5-flash";
+    const modelName = useProModel ? "gemini-2.5-flash" : "gemini-2.5-flash";
 
     const response = await ai.models.generateContent({
       model: modelName,
