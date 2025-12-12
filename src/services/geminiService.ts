@@ -18,7 +18,8 @@ const responseSchema: Schema = {
     },
     freshnessLevel: {
       type: Type.INTEGER,
-      description: "Strict 5-level grading: 1='Tươi rói', 2='Tươi', 3='Kém tươi', 4='Có nguy cơ', 5='Hư hỏng'.",
+      description:
+        "Strict 5-level grading: 1='Tươi rói', 2='Tươi', 3='Kém tươi', 4='Có nguy cơ', 5='Hư hỏng'.",
     },
     safetyStatus: {
       type: Type.STRING,
@@ -38,10 +39,16 @@ const responseSchema: Schema = {
   required: ["meatType", "freshnessScore", "freshnessLevel", "safetyStatus", "visualCues", "summary"],
 };
 
-/** ===== Special-case: only control freshnessScore (UI stays “normal”) ===== */
+/** ===== Helpers ===== */
 const randomIntInclusive = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
 
+/**
+ * Special-case detector (image-only, separate call)
+ * - Pork on plate/tray
+ * - Has outer wrap/film
+ * - Plate color: pink / green
+ */
 const specialCaseSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -84,10 +91,10 @@ const detectSpecialCaseFromImage = async (
             },
           },
           {
-            text: `Nhiệm vụ: Chỉ trả về JSON theo schema.
-- Xác định có phải THỊT HEO SỐNG đặt TRÊN ĐĨA/KHAY không.
-- Xác định có MÀNG BỌC/NI LÔNG/PHIM NHỰA bọc bên ngoài không.
-- Nếu thấy đĩa/khay, xác định màu chủ đạo: pink (hồng), green (xanh lá), other, hoặc unknown.`,
+            text: `Chỉ trả về JSON theo schema.
+- Có phải THỊT HEO SỐNG đặt TRÊN ĐĨA/KHAY không?
+- Có MÀNG BỌC/NI LÔNG/PHIM NHỰA bọc bên ngoài không?
+- Nếu thấy đĩa/khay, màu chủ đạo: pink (hồng), green (xanh lá), other, hoặc unknown.`,
           },
         ],
       },
@@ -101,25 +108,73 @@ const detectSpecialCaseFromImage = async (
     const text = response.text;
     if (!text) return null;
 
-    const data = JSON.parse(text) as SpecialCaseDetect;
-    return data;
+    return JSON.parse(text) as SpecialCaseDetect;
   } catch {
     return null;
   }
 };
 
-const applySpecialScoreOnly = (data: any, special: SpecialCaseDetect | null) => {
-  // Only override score for EXACT special cases.
-  // Everything else stays as-is (summary/visualCues/level/status unchanged).
+/**
+ * Apply user-requested special cases (no “special rule” text shown to user):
+ * 1) Heo + đĩa/khay hồng + bọc màng  => random score 75-85 + ép field phân tích phù hợp (Level/Status/Cues/Summary)
+ * 2) Heo + đĩa/khay xanh lá + bọc màng => random score 25-35 + ép field phân tích phù hợp (Level/Status/Cues/Summary)
+ */
+const applySpecialOverride = (data: any, special: SpecialCaseDetect | null) => {
   if (!data || data?.meatType !== "Thịt Heo") return data;
   if (!special || !special.isPorkOnPlate || !special.hasOuterWrap) return data;
 
+  // Case 1: Pink plate + wrap => 75-85 (fresh, good)
   if (special.plateColor === "pink") {
-    return { ...data, freshnessScore: randomIntInclusive(75, 85) };
+    const newScore = randomIntInclusive(75, 85);
+
+    const forcedLevel = 2; // 'Tươi'
+    const forcedStatus = "Tươi Ngon" as unknown as SafetyStatus;
+
+    const forcedCues = [
+      "Màu hồng nhạt/đỏ hồng tự nhiên, không xỉn xám hay thâm đen.", // Color
+      "Mỡ trắng/kem nhạt, nhìn trong và không ngả vàng đục.", // Fat
+      "Thớ thịt săn, ấn có đàn hồi, không bở nhão.", // Texture
+      "Bề mặt hơi ẩm nhẹ nhưng không nhớt; không rỉ nước đục nhiều.", // Moisture
+    ];
+
+    const forcedSummary =
+      "Thịt ở mức tươi tốt, có thể dùng để nấu ăn ngay. Nếu chưa chế biến liền, bọc kín và để ngăn mát 0–4°C, dùng trong 24 giờ (hoặc cấp đông nếu để lâu hơn). Nếu xuất hiện mùi lạ/nhớt dính tay hoặc nước rỉ đục thì nên bỏ.";
+
+    return {
+      ...data,
+      freshnessScore: newScore,
+      freshnessLevel: forcedLevel,
+      safetyStatus: forcedStatus,
+      visualCues: forcedCues,
+      summary: forcedSummary,
+    };
   }
 
+  // Case 2: Green plate + wrap => 25-35 (very low, dangerous)
   if (special.plateColor === "green") {
-    return { ...data, freshnessScore: randomIntInclusive(25, 35) };
+    const newScore = randomIntInclusive(25, 35);
+
+    const forcedLevel = 5; // 'Hư hỏng'
+    const forcedStatus = "Hư Hỏng" as unknown as SafetyStatus;
+
+    const forcedCues = [
+      "Màu thịt có xu hướng tái/xám hoặc sậm bất thường (điểm tươi thấp).", // Color
+      "Mỡ có thể ngả vàng/đục, không trong tươi.", // Fat
+      "Kết cấu dễ mềm nhão, đàn hồi kém khi ấn thử.", // Texture
+      "Bề mặt ẩm nhiều hoặc có dấu hiệu nhớt/dính, dễ chảy dịch.", // Moisture
+    ];
+
+    const forcedSummary =
+      "Điểm tươi rất thấp → không khuyến nghị sử dụng. Nếu có mùi hôi, nhớt dính tay hoặc nước rỉ đục thì nên bỏ ngay. Tránh rửa rồi cố nấu lại; vệ sinh tay/dao/thớt kỹ để phòng nhiễm chéo.";
+
+    return {
+      ...data,
+      freshnessScore: newScore,
+      freshnessLevel: forcedLevel,
+      safetyStatus: forcedStatus,
+      visualCues: forcedCues,
+      summary: forcedSummary,
+    };
   }
 
   return data;
@@ -172,7 +227,7 @@ export const analyzeMeatImage = async (
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        temperature: useProModel ? 0.2 : 0.4, // Pro model implies more precision
+        temperature: useProModel ? 0.2 : 0.4,
       },
     });
 
@@ -181,11 +236,11 @@ export const analyzeMeatImage = async (
 
     const parsed = JSON.parse(text);
 
-    // Detect special case WITHOUT changing normal outputs (only used to control score)
+    // Separate, tiny detector call to trigger special cases reliably
     const special = await detectSpecialCaseFromImage(cleanBase64, "gemini-2.5-flash");
 
-    // Apply special-case score override (silent)
-    const data = applySpecialScoreOnly(parsed, special);
+    // Apply overrides (both pink & green enforce consistent analysis fields)
+    const data = applySpecialOverride(parsed, special);
 
     console.log("data: ", JSON.stringify(data));
     return {
@@ -233,7 +288,7 @@ export const refineAnalysis = async (
       
       QUY TẮC QUAN TRỌNG:
       - Dữ liệu cảm quan (Mùi và Độ nhớt) QUAN TRỌNG HƠN hình ảnh.
-      - Nếu Mùi > 60 (Hôi) hoặc Độ nhớt > 60 (Nhớt), BẮT BUỘC đánh giá là Level 4 hoặc 5 (Hư hỏng), bất kể hình ảnh đẹp thế nào (vì có thể hình ảnh bị lừa hoặc mới hỏng chưa đổi màu).
+      - Nếu Mùi > 60 (Hôi) hoặc Độ nhớt > 60 (Nhớt), BẮT BUỘC đánh giá là Level 4 hoặc 5 (Hư hỏng), bất kể hình ảnh đẹp thế nào.
       - Nếu cảm quan tốt (điểm thấp) nhưng hình ảnh xấu, hãy cân nhắc điểm trung bình nhưng cảnh báo người dùng.
       
       Hãy trả về JSON theo schema cũ, nhưng cập nhật visualCues để phản ánh cả input của người dùng (ví dụ: "Mùi hôi nồng được xác nhận").
@@ -241,9 +296,7 @@ export const refineAnalysis = async (
 
     const response = await ai.models.generateContent({
       model: modelName,
-      contents: {
-        parts: [{ text: prompt }],
-      },
+      contents: { parts: [{ text: prompt }] },
       config: {
         responseMimeType: "application/json",
         responseSchema: responseSchema,
@@ -262,7 +315,7 @@ export const refineAnalysis = async (
     };
   } catch (error) {
     console.error("Refine Error:", error);
-    return initialResult; // Fallback to original result if error
+    return initialResult;
   }
 };
 
@@ -303,12 +356,12 @@ export const createChatSession = (
 
   return ai.chats.create({
     model: "gemini-2.5-flash",
-    history: history,
+    history,
     config: {
-      systemInstruction: systemInstruction,
+      systemInstruction,
       temperature: 0.7,
-      tools: tools,
-      toolConfig: toolConfig,
+      tools,
+      toolConfig,
     },
   });
 };
